@@ -1,0 +1,46 @@
+"""Optionaler Browser-Test (Python + Playwright). Voraussetzung: Projektordner unter http://localhost:8765/ ausliefern (z. B. `python -m http.server 8765`). Für den Betrieb der Website NICHT nötig."""
+import sys, re, json; sys.path.insert(0,__import__('os').path.dirname(__import__('os').path.abspath(__file__)))
+from admin_helper import *
+R=[]
+def ok(n,c,x=""): R.append(bool(c)); print(("PASS " if c else "FAIL ")+n+("" if c else "  → "+str(x)))
+S="http://localhost:8765/"
+with sync_playwright() as p:
+    br=p.chromium.launch(); ctx=br.new_context(viewport={"width":1440,"height":1000}); errs=[]
+    ctx.route("**/formsubmit.co/**",lambda r:r.fulfill(status=200,content_type="application/json",body='{"success":"true"}'))
+    site=ctx.new_page(); site.on("pageerror",lambda e:errs.append(str(e)))
+    site.goto(S+"anfrage.html"); site.wait_for_timeout(600)
+    site.fill("#a1","Paul"); site.fill("#a2","Pilot"); site.fill("#a3","paul@example.com"); site.fill("#a12","Pilot GmbH"); site.fill("#b1","Pilotgasse"); site.fill("#b2","7"); site.fill("#b3","1020"); site.fill("#b4","Wien"); site.fill("#b6","ATU12345678"); site.select_option("#svsel","Kundenportale"); site.fill("#a5","Kundenportal für Pilot GmbH"); site.fill("#a6","Portal mit Dokumenten und Rechnungen.")
+    site.fill("[name=detail_portal_sections]","Dokumente, Rechnungen"); site.select_option("#a8",index=3); site.select_option("#a9",index=2)
+    site.check("input[name=paymentModel][value=monatlich]"); site.select_option("#monthlyPackage",index=2); pk=site.eval_on_selector("#monthlyPackage","e=>e.options[e.selectedIndex].text")
+    site.check("input[name=hostingModel][value=eigen]"); site.fill("#hostingNotes","Eigener Server bei Hetzner"); site.check("#a11"); site.click("button[type=submit]"); site.wait_for_timeout(1200)
+    ok("Website: Projektanfrage abgesendet", "Vielen Dank" in site.inner_text("#fs"))
+    adm=ctx.new_page(); adm.on("pageerror",lambda e:errs.append(str(e))); login(adm)
+    adm.evaluate("location.hash='anfragen'"); adm.wait_for_timeout(500)
+    row=adm.locator("tbody tr").filter(has_text="Kundenportal für Pilot GmbH"); ok("Admin: neue Anfrage erscheint (Status Neu)", row.count()==1 and "Neu" in row.inner_text(), adm.inner_text("#cnt")[:200])
+    row.locator("td").first.click(); adm.wait_for_timeout(500)
+    t=adm.inner_text(".md")
+    ok("Admin: Anfragedetail zeigt Leistung, Detailantwort, Zahlungsmodell, Paket, Hosting", all(x in t for x in ["Kundenportale","Dokumente, Rechnungen","monatlich","Eigenes Hosting","Hetzner"]), t[:400])
+    ok("Admin: Paketleistungen und Support sind sichtbar", "Paketleistungen" in t and "Enthaltener Support" in t)
+    adm.screenshot(path="/tmp/nexora-adm_anfrage_detail.png")
+    adm.get_by_role("button",name="In Projekt übernehmen").click(); adm.wait_for_timeout(800)
+    if adm.query_selector("[data-y]"): adm.click("[data-y]"); adm.wait_for_timeout(800)
+    prj=adm.evaluate("NX.db.projects.find(p=>p.name==='Kundenportal für Pilot GmbH')")
+    ok("Projekt: übernimmt Zahlungsmodell monatlich, Paket und Eigenhosting", prj and prj["paymentModel"]=="monatlich" and prj["monthlyPackage"] and prj["hostingModel"]=="eigen" and prj["projectDetails"].get("portal_sections")=="Dokumente, Rechnungen", prj)
+    cust=adm.evaluate("NX.db.customers.find(c=>c.last==='Pilot')"); ok("Kunde: wird aus der Anfrage angelegt/übernommen", cust is not None and cust["email"]=="paul@example.com", cust)
+    ok("Anfrage: ist mit dem Projekt verknüpft", adm.evaluate("NX.db.inquiries.find(i=>i.subject==='Kundenportal für Pilot GmbH').projectId")==prj["id"])
+    adm.evaluate("location.hash='projekte'"); adm.wait_for_timeout(500)
+    adm.locator("tbody tr").filter(has_text="Kundenportal für Pilot GmbH").locator("td").first.click(); adm.wait_for_timeout(500)
+    sub=adm.get_by_role("button",name=re.compile("Monatsvertrag|Vertrag")); ok("Projekt: Button „Vertrag anlegen“ für monatlich zahlende Projekte", sub.count()>=1, [b.inner_text() for b in adm.query_selector_all(".md button")])
+    if sub.count():
+        sub.first.click(); adm.wait_for_timeout(500); fv=adm.locator(".ov").last.locator("[name]").evaluate_all("e=>Object.fromEntries(e.map(x=>[x.name,x.value]))")
+        ok("Vertrag: Paketname, Paketbeschreibung und Hosting-Notiz sind aus dem Projekt vorbelegt (Betrag bleibt bei „Preis auf Anfrage“ leer)", fv.get("packageName")=="Business-Website" and "Hetzner" in fv.get("description","") and fv.get("amount")=="", fv)
+        adm.locator(".ov").last.locator("[name=amount]").fill("49"); adm.locator(".ov").last.get_by_role("button",name="Vertrag speichern").click(); adm.wait_for_timeout(700)
+        sb=adm.evaluate("NX.db.subscriptions.slice(-1)[0]")
+        ok("Vertrag: gespeichert mit Kunde, Projekt, Paket und Netto-Monatspreis 49,00 €", sb["customerId"]==cust["id"] and sb["projectId"]==prj["id"] and sb["amount"]==4900 and sb["packageName"]=="Business-Website", sb)
+    # Kundenportal: Rechnung des Demo-Kunden sichtbar
+    por=ctx.new_page(); por.on("pageerror",lambda e:errs.append(str(e))); por.goto(S+"kundenportal.html"); por.wait_for_timeout(600)
+    por.fill("input[type=email]","mia.demo@example.com"); por.fill("input[type=password]","Demo12345"); por.click("form button[type=submit], form .btn"); por.wait_for_timeout(1300)
+    por.click("button[data-v=dokumente]"); por.wait_for_timeout(500); dt=por.inner_text("body")
+    ok("Kundenportal: Rechnungen aus der Verrechnung erscheinen beim Kunden (R-2026-0002, offen 2.237,00 €)", "R-2026-0002" in dt and "2.237,00" in dt, dt[:300])
+    ok("Kundenportal: Entwürfe sind für Kunden nicht sichtbar", "R-2026-0004" not in dt)
+    print("JS-Fehler:",errs); print(f"\nADMIN-FLOW 3: {sum(R)}/{len(R)} bestanden")

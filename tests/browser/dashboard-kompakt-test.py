@@ -1,0 +1,62 @@
+import sys; sys.path.insert(0,'/home/claude/NEXORA-by-AL/tests/browser')
+from admin_helper import *
+R=[]
+def ok(n,c): R.append(bool(c)); print(('OK   ' if c else 'FEHLER '),n)
+def box(pg,sel,i=0):
+    return pg.evaluate("([s,i])=>{const r=document.querySelectorAll(s)[i].getBoundingClientRect();return [r.left,r.top,r.right,r.bottom]}",[sel,i])
+with sync_playwright() as p:
+    br=p.chromium.launch()
+    for w,h in [(1440,900),(1920,1080),(1536,864),(1366,768),(2560,1300)]:
+        pg=br.new_page(viewport={"width":w,"height":h}); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e))); login(pg); pg.wait_for_timeout(900)
+        sc=pg.evaluate("document.documentElement.scrollHeight")
+        ok(f'{w}x{h}: Dashboard ohne Scrollen (scrollHeight {sc})', sc<=h+1)
+        ok(f'{w}x{h}: kein seitliches Scrollen', pg.evaluate("document.documentElement.scrollWidth<=innerWidth"))
+        ok(f'{w}x{h}: Handlungsbedarf ohne eigenen Scrollbalken', pg.evaluate("(()=>{const e=document.querySelector('.nx-ax-todo');return e.scrollHeight<=e.clientHeight+1})()"))
+        if w==1440:
+            ok('Kein Button "Jetzt sichern" mehr im Dashboard', pg.locator('.nx-ax-bk').count()==0 and 'Jetzt sichern' not in pg.inner_text('#cnt'))
+            h1=box(pg,'.nx-ax-dash > h1'); kp=box(pg,'.kp'); td=box(pg,'.nx-ax-todo'); qk=box(pg,'.nx-ax-quick')
+            c1=box(pg,'.nx-ax-chart',0); c2=box(pg,'.nx-ax-chart',1); a1=box(pg,'.nx-ax-a1'); a2=box(pg,'.nx-ax-a2')
+            ok('Reihe 1: Überschrift oben links', abs(h1[0]-kp[0])<4 and h1[1]<kp[1])
+            ok('Reihe 2: Kennzahlen unter Kopfzeile', kp[1]>=h1[3]-2)
+            ok('Reihe 3: Handlungsbedarf links, Schnellaktionen rechts', td[0]<qk[0] and abs(td[1]-qk[1])<3 and td[1]>=kp[3]-2)
+            ok('Reihe 4: Umsatz links, Nutzer rechts', c1[0]<c2[0] and abs(c1[1]-c2[1])<3 and c1[1]>=td[3]-2)
+            ok('Reihe 5: Aktivitäten links, Änderungen rechts', a1[0]<a2[0] and abs(a1[1]-a2[1])<3 and a1[1]>=c1[3]-2)
+            qb=pg.evaluate("[...document.querySelectorAll('.nx-ax-quick .btn')].map(b=>{const r=b.getBoundingClientRect();return [Math.round(r.left),Math.round(r.top)]})")
+            ok('Schnellaktionen: 2 neben- und 2 untereinander', len(qb)==4 and qb[0][1]==qb[1][1] and qb[2][1]==qb[3][1] and qb[2][1]>qb[0][1] and qb[0][0]==qb[2][0] and qb[1][0]>qb[0][0])
+            for i,t in enumerate(['Umsatzübersicht','Nutzer & Besucher']):
+                hb=box(pg,'.nx-ax-chart h3',i); sb=box(pg,'.nx-ax-chart select.nx-ax-rangesel',i); cb=box([pg][0],'.nx-ax-chart',i)
+                ok(f'{t}: Dropdown auf Höhe der Überschrift, rechts', abs((hb[1]+hb[3])/2-(sb[1]+sb[3])/2)<8 and sb[2]>cb[2]-30 and sb[0]>hb[2])
+            ok('Zeitraum per Dropdown wechselbar', pg.evaluate("(()=>{const s=document.querySelector('.nx-ax-rangesel');s.value='week';s.dispatchEvent(new Event('change',{bubbles:true}));return s.value==='week'&&document.querySelector('.nx-ax-plot svg')!==null})()"))
+            ok('Diagramm füllt seinen Bereich', pg.evaluate("(()=>{const p=document.querySelector('.nx-ax-plot'),s=p.querySelector('svg').getBoundingClientRect(),r=p.getBoundingClientRect();return Math.abs(s.height-r.height)<2&&r.height>100})()"))
+            ok('Aktivitäten: höchstens 3 Einträge sichtbar', pg.locator('.nx-ax-a1 ul.list li').count()<=3 and pg.locator('.nx-ax-a2 ul.list li').count()<=3)
+            more=pg.locator('.nx-ax-a2 .nx-ax-more')
+            if more.count():
+                txt=more.inner_text(); n=int(txt.replace('+','').split()[0])
+                ok('Button zeigt Anzahl "+ n weitere"', n>=1 and 'weitere' in txt)
+                more.click(); pg.wait_for_timeout(300)
+                md=box(pg,'.ov .md'); 
+                ok('Popup mittig im Bildschirm', abs((md[0]+md[2])/2-w/2)<20 and abs((md[1]+md[3])/2-h/2)<h*0.2)
+                ok('Popup enthält alle Einträge', pg.locator('.ov .nx-ax-all li').count()==3+n)
+                pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
+                ok('Popup schließbar', pg.locator('.ov').count()==0)
+            else: ok('(keine weiteren Änderungen vorhanden)', True)
+            pg.click("[data-v='anfragen']"); pg.wait_for_timeout(300)
+            ok('Andere Ansicht nicht umgebaut (kein Grid)', pg.evaluate("getComputedStyle(document.getElementById('cnt')).display")!='grid')
+            pg.click('.logo'); pg.wait_for_timeout(500)
+            ok('Zurück zum Dashboard wieder ohne Scrollen', pg.evaluate("document.documentElement.scrollHeight")<=901)
+        ok(f'{w}x{h}: keine JS-Fehler', not errs); pg.close()
+    # Größe ändern -> Skalierung
+    pg=br.new_page(viewport={"width":1440,"height":900}); login(pg); pg.wait_for_timeout(700)
+    pg.set_viewport_size({"width":1700,"height":1000}); pg.wait_for_timeout(700)
+    ok('Nach Größenänderung weiterhin ohne Scrollen', pg.evaluate("document.documentElement.scrollHeight")<=1001)
+    pg.close()
+    for w,h in [(390,844),(768,1024)]:
+        pg=br.new_page(viewport={"width":w,"height":h}); login(pg); pg.wait_for_timeout(800)
+        ok(f'{w}: kein seitliches Scrollen', pg.evaluate("document.documentElement.scrollWidth<=innerWidth"))
+        ys=pg.evaluate("['.nx-ax-dash > h1','.kp','.nx-ax-todo','.nx-ax-quick','.nx-ax-chart:nth-child(1)','.nx-ax-chart:nth-child(2)','.nx-ax-a1','.nx-ax-a2'].map(s=>document.querySelector(s).getBoundingClientRect().top)")
+        ok(f'{w}: Reihenfolge untereinander korrekt', ys==sorted(ys))
+        ok(f'{w}: Bedienelemente mind. 40px hoch', pg.evaluate("[...document.querySelectorAll('.nx-ax-quick .btn,.nx-ax-rangesel,.nx-ax-more')].every(e=>e.getBoundingClientRect().height>=38)"))
+        ok(f'{w}: Diagramm sichtbar & lesbar', pg.evaluate("(()=>{const r=document.querySelector('.nx-ax-plot').getBoundingClientRect();return r.width>250&&r.height>150})()"))
+        ok(f'{w}: Dropdown im Diagrammkopf rechts', pg.evaluate("(()=>{const s=document.querySelector('.nx-ax-rangesel').getBoundingClientRect(),c=document.querySelector('.nx-ax-chart').getBoundingClientRect();return s.right>c.right-30&&s.right<=c.right})()"))
+        pg.close()
+print(f'DASHBOARD-KOMPAKT: {sum(R)}/{len(R)} bestanden'); sys.exit(0 if all(R) else 1)

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+<defs>
+ <radialGradient id="space" cx="50%" cy="35%" r="78%"><stop stop-color="#21083c"/><stop offset=".38" stop-color="#0c0618"/><stop offset="1" stop-color="#020207"/></radialGradient>
+ <radialGradient id="core" cx="50%" cy="55%" r="55%"><stop stop-color="#8c20f7" stop-opacity=".36"/><stop offset=".45" stop-color="#4c0c91" stop-opacity=".16"/><stop offset="1" stop-color="#090311" stop-opacity="0"/></radialGradient>
+ <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff0ff"/><stop offset=".16" stop-color="#ed9cff"/><stop offset=".38" stop-color="#9b28ff"/><stop offset="1" stop-color="#3a0873" stop-opacity="0"/></linearGradient>
+ <linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c16aff" stop-opacity=".56"/><stop offset=".55" stop-color="#711bd4" stop-opacity=".28"/><stop offset="1" stop-color="#1a0735" stop-opacity=".12"/></linearGradient>
+ <linearGradient id="mesh" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#6c16cf" stop-opacity="0"/><stop offset=".48" stop-color="#e9aaff" stop-opacity=".9"/><stop offset="1" stop-color="#7b20e8" stop-opacity="0"/></linearGradient>
+ <pattern id="stars" width="181" height="137" patternUnits="userSpaceOnUse"><circle cx="12" cy="20" r="1.3" fill="#e9c5ff" opacity=".65"/><circle cx="91" cy="72" r="1" fill="#fff" opacity=".58"/><circle cx="151" cy="35" r=".8" fill="#c77cff" opacity=".7"/><circle cx="48" cy="119" r=".7" fill="#fff" opacity=".38"/></pattern>
+ <pattern id="micro" width="13" height="13" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".9" fill="#d58aff" opacity=".52"/></pattern>
+ <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="15"/></filter>
+ <filter id="lineGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="cityGlow"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <clipPath id="planet"><path d="M-120 690 Q960 250 2040 690 L2040 1200 L-120 1200Z"/></clipPath>
+</defs>
+<rect width="1920" height="1080" fill="url(#space)"/><rect width="1920" height="1080" fill="url(#stars)"/>
+<ellipse cx="960" cy="440" rx="780" ry="580" fill="url(#core)"/>
+<!-- monumental energy arch -->
+<path d="M430 600 A530 530 0 0 1 1490 600" fill="none" stroke="#8b20ef" stroke-width="22" opacity=".28" filter="url(#softGlow)"/>
+<path d="M430 600 A530 530 0 0 1 1490 600" fill="none" stroke="#b74cff" stroke-width="2.5" opacity=".82" filter="url(#lineGlow)"/>
+<path d="M445 600 A515 515 0 0 1 1475 600" fill="none" stroke="#f2c7ff" stroke-width=".9" opacity=".55"/>
+<!-- angled architectural light beams -->
+<path d="M70 70 L630 650 M1850 70 L1290 650" stroke="#7d1bd3" stroke-width="105" opacity=".055"/>
+<path d="M70 70 L630 650 M1850 70 L1290 650" stroke="#a84bff" stroke-width="1.6" opacity=".35"/>
+<!-- planet surface -->
+<g clip-path="url(#planet)">
+ <rect x="-120" y="420" width="2160" height="800" fill="#07020f"/>
+ <ellipse cx="960" cy="685" rx="1180" ry="480" fill="url(#core)"/>
+ <path d="M-120 690 Q960 250 2040 690" fill="none" stroke="#b73aff" stroke-width="42" opacity=".34" filter="url(#softGlow)"/>
+ <path d="M-120 690 Q960 250 2040 690" fill="none" stroke="url(#rim)" stroke-width="13" filter="url(#lineGlow)"/>
+ <path d="M-120 690 Q960 250 2040 690" fill="none" stroke="#ffe6ff" stroke-width="2.2" filter="url(#lineGlow)"/>
+ <path d="M-120 714 Q960 292 2040 714 M-120 748 Q960 330 2040 748 M-120 790 Q960 370 2040 790 M-120 838 Q960 416 2040 838 M-120 892 Q960 470 2040 892 M-120 950 Q960 530 2040 950 M-120 1012 Q960 594 2040 1012" fill="none" stroke="#8c2ae3" stroke-width="1.4" opacity=".34"/>
+ <rect x="-120" y="420" width="2160" height="800" fill="url(#micro)" opacity=".34"/>
+ <!-- organic illuminated landmasses -->
+ <g fill="url(#land)" stroke="#dba0ff" stroke-width="2" stroke-opacity=".7" filter="url(#lineGlow)">
+  <path d="M112 676 C142 650 158 632 190 630 C216 613 239 597 270 610 C291 620 306 642 337 642 C361 648 376 666 366 687 C354 703 333 704 320 720 C309 741 284 746 271 766 C254 789 228 792 211 773 C194 755 171 760 158 739 C145 720 120 715 112 696Z"/>
+  <path d="M352 591 C368 568 394 559 418 572 C437 584 441 606 425 624 C406 641 378 635 361 619Z"/>
+  <path d="M450 752 C474 730 501 726 527 742 C551 758 559 783 548 809 C537 834 530 858 510 883 C491 872 480 851 475 828 C465 806 445 778 450 752Z"/>
+  <path d="M674 636 C691 620 707 610 726 615 C742 602 760 607 770 621 C785 612 801 620 808 634 C827 628 842 640 836 655 C823 666 808 663 799 678 C784 687 770 677 758 671 C744 682 727 674 719 661 C700 664 681 654 674 636Z"/>
+  <path d="M752 680 C773 668 797 674 813 691 C831 711 834 737 822 758 C815 779 804 805 786 826 C768 808 757 785 752 762 C741 739 735 703 752 680Z"/>
+  <path d="M842 621 C866 600 892 587 923 593 C947 582 972 594 993 599 C1018 588 1042 599 1060 610 C1086 602 1110 615 1129 620 C1153 625 1174 639 1170 656 C1151 669 1128 662 1110 674 C1088 687 1066 671 1049 674 C1027 689 1006 674 989 669 C966 682 944 663 925 662 C904 672 882 658 869 646 C849 650 834 639 842 621Z"/>
+  <path d="M1193 679 C1204 665 1217 667 1222 681 C1228 695 1218 710 1208 711 C1197 704 1191 692 1193 679Z"/>
+ </g>
+ <!-- city lights follow land contours -->
+ <g fill="#ffe4ff" filter="url(#cityGlow)">
+  <circle cx="145" cy="680" r="2.6"/><circle cx="169" cy="661" r="2"/><circle cx="193" cy="650" r="2.3"/><circle cx="218" cy="643" r="2.8"/><circle cx="244" cy="630" r="2.1"/><circle cx="270" cy="645" r="2.4"/><circle cx="295" cy="658" r="2.8"/><circle cx="318" cy="678" r="2.1"/><circle cx="281" cy="700" r="2.6"/><circle cx="246" cy="720" r="2"/><circle cx="205" cy="738" r="2.5"/>
+  <circle cx="474" cy="764" r="2.1"/><circle cx="491" cy="785" r="2.7"/><circle cx="515" cy="801" r="2.3"/><circle cx="506" cy="832" r="2.2"/><circle cx="530" cy="773" r="2.1"/>
+  <circle cx="699" cy="638" r="2.2"/><circle cx="720" cy="646" r="2.8"/><circle cx="741" cy="631" r="2.2"/><circle cx="759" cy="650" r="2.7"/><circle cx="779" cy="639" r="2.2"/><circle cx="800" cy="651" r="2.4"/><circle cx="815" cy="641" r="2.1"/>
+  <circle cx="777" cy="705" r="2.5"/><circle cx="790" cy="727" r="2.1"/><circle cx="807" cy="748" r="2.6"/><circle cx="795" cy="778" r="2.2"/>
+  <circle cx="885" cy="623" r="2.1"/><circle cx="911" cy="636" r="2.6"/><circle cx="939" cy="620" r="2.3"/><circle cx="968" cy="641" r="2.7"/><circle cx="997" cy="626" r="2.1"/><circle cx="1024" cy="642" r="2.6"/><circle cx="1050" cy="629" r="2.2"/><circle cx="1082" cy="644" r="2.4"/><circle cx="1111" cy="635" r="2.1"/>
+  <circle cx="1260" cy="714" r="2.1"/><circle cx="1282" cy="739" r="2.8"/><circle cx="1312" cy="757" r="2.2"/><circle cx="1344" cy="778" r="2.6"/><circle cx="1375" cy="754" r="2.1"/><circle cx="1402" cy="786" r="2.5"/><circle cx="1430" cy="808" r="2.1"/><circle cx="1460" cy="789" r="2.6"/><circle cx="1492" cy="818" r="2.2"/>
+ </g>
+ <!-- curved latitude / longitude traces -->
+ <g fill="none" stroke="#bd70ff" stroke-width="1.1" opacity=".3">
+  <path d="M-80 770 Q960 360 2000 770 M-80 820 Q960 410 2000 820 M-80 880 Q960 465 2000 880 M-80 945 Q960 525 2000 945 M-80 1010 Q960 590 2000 1010"/>
+  <path d="M250 650 Q410 835 360 1200 M430 620 Q610 840 590 1200 M650 575 Q770 860 760 1200 M1270 575 Q1150 860 1160 1200 M1490 620 Q1310 840 1330 1200 M1680 650 Q1510 835 1560 1200"/>
+ </g>
+</g>
+<!-- luminous mesh waves sweeping inward from both sides -->
+<g fill="none" stroke="url(#mesh)" stroke-width="2" filter="url(#lineGlow)" opacity=".95">
+ <path d="M-80 420 C130 250 250 590 455 475 S730 370 900 500"/><path d="M-80 435 C130 265 250 605 455 490 S730 385 900 515"/><path d="M-80 450 C130 280 250 620 455 505 S730 400 900 530"/><path d="M-80 465 C130 295 250 635 455 520 S730 415 900 545"/><path d="M-80 480 C130 310 250 650 455 535 S730 430 900 560"/><path d="M-80 495 C130 325 250 665 455 550 S730 445 900 575"/><path d="M-80 510 C130 340 250 680 455 565 S730 460 900 590"/>
+ <path d="M2000 420 C1790 250 1670 590 1465 475 S1190 370 1020 500"/><path d="M2000 435 C1790 265 1670 605 1465 490 S1190 385 1020 515"/><path d="M2000 450 C1790 280 1670 620 1465 505 S1190 400 1020 530"/><path d="M2000 465 C1790 295 1670 635 1465 520 S1190 415 1020 545"/><path d="M2000 480 C1790 310 1670 650 1465 535 S1190 430 1020 560"/><path d="M2000 495 C1790 325 1670 665 1465 550 S1190 445 1020 575"/><path d="M2000 510 C1790 340 1670 680 1465 565 S1190 460 1020 590"/>
+</g>
+<!-- horizon reflections -->
+<path d="M0 835 Q960 790 1920 835" stroke="#a02cff" stroke-width="20" opacity=".18" filter="url(#softGlow)"/>
+<path d="M0 835 Q960 790 1920 835" stroke="#b83dff" stroke-width="2" opacity=".55" filter="url(#lineGlow)"/>
+<g fill="#f4d6ff" filter="url(#lineGlow)"><circle cx="300" cy="820" r="5"/><circle cx="1620" cy="820" r="5"/><circle cx="960" cy="1000" r="3"/></g>
+</svg>
