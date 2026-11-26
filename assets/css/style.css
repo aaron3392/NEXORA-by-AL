@@ -2987,3 +2987,7 @@ html { color-scheme: dark; }
 .side .side-chevron { font-size: 0; transition: none; transform: none !important; width: 1.2em; text-align: center; }
 .side .side-chevron::before { content: "+"; font-size: 1.25rem; font-weight: 600; line-height: 1; }
 .side-group.expanded .side-chevron::before { content: "\2212"; }
+
+/* Unterpunkte: weicher Schattenkasten wie zuvor, nur ohne Linie */
+.admin-app .side .side-sub-link:not(.on) { background: linear-gradient(100deg, rgba(139,63,225,.12), rgba(20,12,34,.55)); box-shadow: 0 3px 12px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04); margin: 4px 0; }
+.admin-app .side .side-sub-link:not(.on):hover { background: linear-gradient(100deg, rgba(139,63,225,.24), rgba(20,12,34,.6)); }
