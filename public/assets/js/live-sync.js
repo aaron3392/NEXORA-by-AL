@@ -16,6 +16,8 @@
         inq: new Set((db.inquiries || []).map(i => i.id)),
         cust: new Set((db.customers || []).filter(c => c.role !== 'Administrator' && c.role !== 'Mitarbeiter').map(c => c.id)),
         sup: new Set((db.support || []).map(s => s.id)),
+        dec: new Set((db.offers || []).filter(o => o.decision).map(o => o.id + ':' + o.decision.at)),
+        clm: new Set((db.invoices || []).filter(i => i.claim).map(i => i.id + ':' + i.claim.at)),
         chat: Object.fromEntries(Object.keys(db.chat || {}).map(id => [id, (db.chat[id] || []).filter(m => m.from === 'me').length]))
     });
     const name = o => [o && o.first, o && o.last].filter(Boolean).join(' ') || (o && o.email) || 'Unbekannt';
@@ -24,6 +26,8 @@
         (db.inquiries || []).filter(i => !s.inq.has(i.id)).forEach(i => n.push({ k: 'inq', t: 'Neue Anfrage', b: (i.subject || 'Ohne Betreff') + ' – ' + name(i), go: 'anfragen' }));
         (db.customers || []).filter(c => c.role !== 'Administrator' && c.role !== 'Mitarbeiter' && !s.cust.has(c.id)).forEach(c => n.push({ k: 'cust', t: 'Neue Kundenregistrierung', b: name(c) + (c.email ? ' (' + c.email + ')' : ''), go: 'user' }));
         (db.support || []).filter(x => !s.sup.has(x.id)).forEach(x => { const c = (db.customers || []).find(u => u.id === x.customerId); n.push({ k: 'sup', t: 'Neue Support-Anfrage', b: (x.subject || 'Ohne Betreff') + (c ? ' – ' + name(c) : ''), go: 'projekte' }); });
+        (db.offers || []).filter(o => o.decision && !s.dec.has(o.id + ':' + o.decision.at)).forEach(o => n.push({ k: 'dec', t: (o.type || 'Angebot') + (o.decision.st === 'Angenommen' ? ' angenommen' : ' abgelehnt'), b: o.number + ' – ' + name((db.customers || []).find(u => u.id === o.customerId)) + (o.decision.reason ? ': ' + o.decision.reason : ''), go: 'verrechnung-angebote' }));
+        (db.invoices || []).filter(i => i.claim && !s.clm.has(i.id + ':' + i.claim.at)).forEach(i => n.push({ k: 'clm', t: 'Zahlung gemeldet', b: 'Rechnung ' + i.number + ' – ' + name((db.customers || []).find(u => u.id === i.customerId)), go: 'verrechnung-rechnungen' }));
         Object.keys(db.chat || {}).forEach(id => { const cnt = (db.chat[id] || []).filter(m => m.from === 'me').length; if (cnt > (s.chat[id] || 0)) { const c = (db.customers || []).find(u => u.id === id); n.push({ k: 'chat', t: 'Neue Chat-Nachricht', b: c ? name(c) : 'Kunde', go: 'user' }); } });
         return n;
     }

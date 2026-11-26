@@ -2950,3 +2950,12 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 @media (max-width: 900px) { .admin-app .hb > .logo { flex: 0 0 auto; } .admin-app .hb > .hr { margin-left: auto; } }
 .admin-app .hb > .logo { pointer-events: none; } .admin-app .hb > .logo img { pointer-events: auto; }
 .admin-app .hb > .logo { justify-content: flex-start; }
+
+/* Annehmen/Ablehnen, Zahlungsmeldung */
+.nx-da { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 6px; }
+.nx-pda { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.nx-dec { display: block; margin-top: 4px; }
+.nx-dec.ok { color: #62d6a0; } .nx-dec.no { color: #ff8f8f; } .nx-dec.wait { color: #f5c76a; }
+.nx-dec-box, .nx-pay-box { margin: 12px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(165,86,255,.45); background: rgba(125,36,255,.08); }
+.nx-dec-box.ok { border-color: rgba(98,214,160,.55); } .nx-dec-box.no { border-color: rgba(255,143,143,.55); }
+.nx-ax-todo li.ok i { background: #62d6a0; }

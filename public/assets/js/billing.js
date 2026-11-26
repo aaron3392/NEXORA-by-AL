@@ -13,6 +13,12 @@
         NX.db.settings.lastInvoiceItems = items.filter(i => i.desc && i.desc.trim()).map(i => ({ desc: i.desc.trim(), price: Math.max(0, Math.round(Number(i.price) || 0)) }));
     };
     const opts = (list, sel, lab) => list.map(x => `<option value="${esc(x.id)}"${x.id === sel ? ' selected' : ''}>${esc(lab(x))}</option>`).join('');
+    const claimOn = i => !!(i && i.claim && i.claim.at !== i.claimDone);
+    const hintsOn = i => ((i && i.bankHints) || []).length > 0 && NX.open(i) > 0;
+    const claimBadge = i => claimOn(i) && NX.open(i) > 0 ? ' ' + NX.badge('Zahlung gemeldet') : hintsOn(i) ? ' ' + NX.badge('Bankbuchung erkannt') : '';
+    const decBox = d => !d.decision ? '' : `<div class="note nx-dec-box ${d.decision.st === 'Angenommen' ? 'ok' : 'no'}"><b>Der Kunde hat ${d.decision.st === 'Angenommen' ? 'angenommen' : 'abgelehnt'}</b> (${NX.dt ? NX.dt(d.decision.at) : new Date(d.decision.at).toLocaleString('de-AT')})${d.decision.reason ? '<br>Grund: ' + esc(d.decision.reason) : ''}${d.started ? '<br>Entwicklung gestartet am ' + new Date(d.started).toLocaleDateString('de-AT') + '.' : ''}</div>`;
+    const payBox = d => { if (!claimOn(d) && !hintsOn(d)) return ''; const open = NX.calc(d.items, d.vat, d.disc).gross - NX.paid(d); if (open <= 0) return ''; const h = (d.bankHints || [])[0], amt = h ? Math.min(h.amount, open) : open;
+        return `<div class="note nx-pay-box"><b>${claimOn(d) ? 'Der Kunde meldet, dass er bezahlt hat' + (d.claim.at ? ' (' + new Date(d.claim.at).toLocaleDateString('de-AT') + ')' : '') : 'Zahlung im Kontoauszug erkannt'}.</b><br>${(d.bankHints || []).map(x => 'Bankbuchung vom ' + NX.date(x.date) + ': ' + NX.eur(x.amount)).join('<br>')}${(d.bankHints || []).length ? '<br>' : ''}Die Rechnung gilt erst als bezahlt, wenn du die Zahlung bestätigst.<div class="row" style="margin-top:8px"><div class="field"><label for="cfa">Betrag (€)</label><input id="cfa" type="number" step="0.01" min="0" value="${(amt / 100).toFixed(2)}"></div><div class="field"><label for="cfd">Zahlungsdatum</label><input id="cfd" type="date" value="${h ? h.date : NX.today()}"></div></div><div class="acts"><button type="button" class="btn" data-cf>Zahlung bestätigen</button>${claimOn(d) ? '<button type="button" class="btn ghost" data-cn>Nicht eingegangen</button>' : ''}</div><p class="err" id="cfe"></p></div>`; };
     const selOpts = (arr, sel) => arr.map(s => `<option${s === sel ? ' selected' : ''}>${s}</option>`).join('');
     /* Positionen-Editor */
     function itemsEditor(host, items, onChange) {
@@ -71,14 +77,16 @@
     };
     /* ---------- Angebote ---------- */
     function offerModal(o, done, pre) {
+        if (o && o.decision && o.decision.st === 'Abgelehnt' && !o.decisionSeen) { o.decisionSeen = true; NX.save(); }
         const s = NX.db.settings, isNew = !o, d = o ? clone(o) : Object.assign({ id: NX.uid('O'), number: NX.nextNumber('A', NX.db.offers), type: 'Angebot', customerId: '', projectId: '', date: NX.today(), valid: NX.addDays(NX.today(), s.offerDays), items: [{ desc: '', qty: 1, price: 0 }], disc: 0, vat: s.vatRate, status: 'Entwurf', invoiceId: null }, pre || {});
         const m = NX.modal(isNew ? 'Neues Angebot' : 'Angebot ' + d.number, `<form novalidate>
  <div class="row"><div class="field"><label for="on">Nummer</label><input id="on" name="number" value="${esc(d.number)}"></div><div class="field"><label for="ot">Art</label><select id="ot" name="type">${selOpts(['Angebot', 'Kostenvoranschlag'], d.type)}</select></div></div>
  <div class="row"><div class="field"><label for="oc">Kunde <span class="req">*</span></label><select id="oc" name="customerId"><option value="">– wählen –</option>${opts(NX.db.customers, d.customerId, c => c.first + ' ' + c.last)}</select></div><div class="field"><label for="op">Projekt</label><select id="op" name="projectId"><option value="">– keines –</option>${opts(NX.db.projects, d.projectId, p => p.name)}</select></div></div>
  <div class="row"><div class="field"><label for="od">Angebotsdatum</label><input id="od" type="date" name="date" value="${d.date}"></div><div class="field"><label for="ov">Gültig bis</label><input id="ov" type="date" name="valid" value="${d.valid}"></div><div class="field"><label for="os">Status</label><select id="os" name="status">${selOpts(['Entwurf', 'Versendet', 'Angenommen', 'Abgelehnt', 'Abgelaufen'], d.status)}</select></div></div>
+ ${isNew ? '' : decBox(d)}
  <div class="row"><div class="field"><label for="odi">Rabatt (%)</label><input id="odi" type="number" min="0" max="100" step="0.1" name="disc" value="${d.disc}"></div><div class="field"><label for="ovt">USt (%)</label><input id="ovt" type="number" min="0" step="0.1" name="vat" value="${d.vat}"></div></div>
  <div id="it"></div><p class="err" id="ie"></p><div id="tt"></div>
- <div class="acts"><button class="btn" type="submit">Speichern</button>${!isNew && d.status === 'Angenommen' && !d.invoiceId ? '<button type="button" class="btn ghost" data-inv>In Rechnung umwandeln</button>' : ''}<button type="button" class="btn ghost" data-send>Senden</button>${!isNew ? '<button type="button" class="btn ghost" data-view>Dokument ansehen</button>' : ''}</div></form>`, { wide: true });
+ <div class="acts"><button class="btn" type="submit">Speichern</button>${!isNew && d.status === 'Angenommen' && !d.invoiceId ? '<button type="button" class="btn ghost" data-inv>In Rechnung umwandeln</button>' : ''}<button type="button" class="btn ghost" data-send>Senden</button>${d.decision && d.decision.st === 'Angenommen' && !d.started ? '<button type="button" class="btn" data-start>Entwicklung starten</button>' : ''}${!isNew ? '<button type="button" class="btn ghost" data-view>Dokument ansehen</button>' : ''}</div></form>`, { wide: true });
         const f = NX.$('form', m.body), tt = NX.$('#tt', m.body), upd = () => { d.disc = parseFloat(f.disc.value) || 0; d.vat = parseFloat(f.vat.value) || 0; tt.innerHTML = totalsHTML(d); };
         itemsEditor(NX.$('#it', m.body), d.items, upd);
         f.oninput = e => { if (e.target.name === 'disc' || e.target.name === 'vat')
@@ -113,6 +121,12 @@
             inv.onclick = NX.guard(async () => { if (d.invoiceId)
                 return; take(); const r = { id: NX.uid('R'), number: NX.nextNumber('R', NX.db.invoices), orderNumber: NX.orderNumberFor(d.projectId), customerId: d.customerId, projectId: d.projectId, offerId: d.id, date: NX.today(), due: NX.addDays(NX.today(), s.dueDays), kind: 'Vorauszahlungsrechnung', items: clone(d.items), disc: d.disc, vat: d.vat, draft: true, payments: [], timeIds: [] }; NX.db.invoices.push(r); d.invoiceId = r.id; const i = NX.db.offers.findIndex(x => x.id === d.id); if (i >= 0)
                 NX.db.offers[i] = d; NX.log('Rechnungsentwurf aus Angebot ' + d.number + ': ' + r.number); NX.toast('Rechnungsentwurf ' + r.number + ' erstellt.'); m.close(); done && done(); });
+        const stb = NX.$('[data-start]', m.body);
+        if (stb) stb.onclick = NX.guard(async () => {
+            const so = NX.db.offers.find(x => x.id === d.id); if (!so) return; so.started = Date.now(); so.decisionSeen = true;
+            const pr = NX.db.projects.find(x => x.id === so.projectId); if (pr && pr.status !== 'Laufend') pr.status = 'Laufend';
+            NX.log('Entwicklung gestartet: ' + so.number); NX.save(); NX.toast(pr ? 'Entwicklung gestartet – das Projekt steht auf „Laufend“.' : 'Entwicklung als gestartet markiert (dem Angebot ist kein Projekt zugeordnet).'); m.close(); done && done();
+        });
         const ma = NX.$('[data-view]', m.body);
         if (ma) {
             ma.onclick = () => NX.viewDoc('offer', d);
@@ -142,6 +156,7 @@
  <div class="row"><div class="field"><label for="rd">Rechnungsdatum</label><input id="rd" type="date" name="date" value="${d.date}"></div><div class="field"><label for="rf">Fälligkeitsdatum</label><input id="rf" type="date" name="due" value="${d.due}"></div><div class="field"><label for="rdi">Rabatt (%)</label><input id="rdi" type="number" min="0" max="100" step="0.1" name="disc" value="${d.disc || 0}"></div><div class="field"><label for="rv">USt (%)</label><input id="rv" type="number" min="0" step="0.1" name="vat" value="${d.vat}"></div></div>
  <div class="field chk"><input id="rdr" type="checkbox" name="draft"${d.draft ? ' checked' : ''}><label for="rdr">Entwurf (für Kunden im Portal noch nicht sichtbar)</label></div>
  <div id="it"></div><p class="err" id="ie"></p><div id="tt"></div>
+ ${isNew ? '' : payBox(d)}
  ${isNew ? '' : `<h4 class="sub">Zahlungen</h4><div id="pl"></div><div class="row"><div class="field"><label for="pa">Zahlungseingang (€)</label><input id="pa" type="number" step="0.01" min="0"></div><div class="field"><label for="pd">Zahlungsdatum</label><input id="pd" type="date" value="${NX.today()}"></div></div><button type="button" class="btn ghost sm" data-pay>Zahlung hinzufügen</button><p class="err" id="pe"></p>`}
  <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-send>Senden</button>${isNew ? '' : '<button type="button" class="btn ghost" data-view>Dokument ansehen</button>'}${!isNew && inv.draft ? '<button type="button" class="btn ghost" data-del>Entwurf löschen</button>' : ''}</div></form>`, { wide: true });
         const f = NX.$('form', m.body), tt = NX.$('#tt', m.body);
@@ -165,6 +180,17 @@
             upd(); };
         upd();
         pl();
+        const cf = NX.$('[data-cf]', m.body), cn = NX.$('[data-cn]', m.body);
+        if (cf) cf.onclick = () => {
+            const er = NX.$('#cfe', m.body), a = NX.cents(NX.$('#cfa', m.body).value), open = NX.calc(d.items, d.vat, d.disc).gross - NX.paid(d);
+            if (a <= 0) { er.textContent = 'Bitte einen Betrag > 0 eingeben.'; return; }
+            if (a > open) { er.textContent = 'Der Betrag übersteigt den offenen Betrag (' + NX.eur(open) + ').'; return; }
+            d.payments.push({ date: NX.$('#cfd', m.body).value || NX.today(), amount: a });
+            if (d.claim) { d.claimDone = d.claim.at; d.claimResult = 'bestätigt'; delete d.claim; }
+            const bk = NX.bookkeeping, rest = []; (d.bankHints || []).forEach(h => { if (h.amount === a && bk && bk.confirmBank) bk.confirmBank(h.bankId, d.id, h.amount); else rest.push(h); }); d.bankHints = rest;
+            NX.log('Zahlung bestätigt: ' + d.number + ' (' + NX.eur(a) + ')'); f.requestSubmit();
+        };
+        if (cn) cn.onclick = () => { if (d.claim) { d.claimDone = d.claim.at; d.claimResult = 'abgelehnt'; delete d.claim; } NX.log('Zahlungsmeldung nicht bestätigt: ' + d.number); f.requestSubmit(); };
         const pb = NX.$('[data-pay]', m.body);
         if (pb)
             pb.onclick = () => { const a = NX.cents(NX.$('#pa', m.body).value), pe = NX.$('#pe', m.body); const open = NX.calc(d.items, d.vat, d.disc).gross - NX.paid(d); if (a <= 0)
@@ -276,7 +302,7 @@
         items: () => [...NX.db.invoices].sort((a, b) => b.date.localeCompare(a.date)), text: i => i.number + ' ' + NX.custName(i.customerId), stat: i => NX.invStatus(i), dateOf: i => i.date,
         kpis: all => { const v = all.filter(i => !i.draft); return NX.kpi(v.filter(i => NX.open(i) > 0).length, 'Offene Rechnungen') + NX.kpi(v.filter(i => NX.open(i) <= 0).length, 'Bezahlt') + NX.kpi(NX.eur(v.reduce((s, i) => s + NX.open(i), 0)), 'Offener Betrag') + NX.kpi(NX.eur(v.reduce((s, i) => s + NX.paid(i), 0)), 'Eingegangen'); },
         head: ['Nummer', 'Kunde', 'Datum', 'Fällig', 'Brutto', 'Bezahlt', 'Offen', 'Status', ''],
-        row: i => [esc(i.number), esc(NX.custName(i.customerId)), NX.date(i.date), NX.date(i.due), NX.eur(NX.total(i)), NX.eur(NX.paid(i)), NX.eur(NX.open(i)), NX.badge(NX.invStatus(i)), NX.btn('view', i.id, 'Ansehen') + NX.btn('edit', i.id, 'Bearbeiten') + NX.btn('mail', i.id, 'Senden')],
+        row: i => [esc(i.number), esc(NX.custName(i.customerId)), NX.date(i.date), NX.date(i.due), NX.eur(NX.total(i)), NX.eur(NX.paid(i)), NX.eur(NX.open(i)), NX.badge(NX.invStatus(i)) + claimBadge(i), NX.btn('view', i.id, 'Ansehen') + NX.btn('edit', i.id, 'Bearbeiten') + NX.btn('mail', i.id, 'Senden')],
         onAdd: r => invoiceModal(null, r),
         act: (a, id, r) => { const i = NX.db.invoices.find(x => x.id === id); if (a === 'view')
             NX.viewDoc('invoice', i);

@@ -133,6 +133,40 @@
         D.reminders.filter(r => r.customerId === c.id).forEach(r => { const i = D.invoices.find(x => x.id === r.invoiceId) || {}; L.push({ pid: i.projectId, k: 'reminder:' + r.id, t: r.type, n: r.number, d: r.date, a: (NX.open(i) || 0) + (r.fee || 0), s: r.type }); });
         return L.sort((a, b) => b.d.localeCompare(a.d));
     };
+    /* Kunde: Angebot/Kostenvoranschlag annehmen oder mit Begründung ablehnen, Zahlung melden */
+    const dateOf = ms => NX.date(new Date(ms).toISOString().slice(0, 10));
+    const invOf = (t, id) => t === 'invoice' ? NX.db.invoices.find(x => x.id === id) : NX.db.invoices.find(x => x.id === (NX.db.reminders.find(r => r.id === id) || {}).invoiceId);
+    const dact = d => {
+        const D = NX.db, [t, id] = d.k.split(':');
+        if (t === 'offer') {
+            const o = D.offers.find(x => x.id === id); if (!o) return '';
+            if (o.decision) return `<small class="nx-dec ${o.decision.st === 'Angenommen' ? 'ok' : 'no'}">${esc(o.decision.st)} am ${dateOf(o.decision.at)}${o.decision.reason ? ' – Grund: ' + esc(o.decision.reason) : ''}</small>`;
+            return NX.offStatus(o) === 'Versendet' ? `<span class="nx-da"><button type="button" class="btn sm" data-da="accept:${id}">Annehmen</button><button type="button" class="btn ghost sm" data-da="reject:${id}">Ablehnen</button></span>` : '';
+        }
+        const inv = invOf(t, id); if (!inv || NX.open(inv) <= 0) return '';
+        if (inv.claim && inv.claim.at !== inv.claimDone) return '<small class="nx-dec wait">Zahlung gemeldet – wird von uns geprüft</small>';
+        return `<span class="nx-da"><button type="button" class="btn sm" data-da="paid:${inv.id}">Ich habe bezahlt</button></span>` + (inv.claimResult === 'abgelehnt' ? '<small class="nx-dec no">Ihre letzte Zahlungsmeldung konnte noch nicht bestätigt werden.</small>' : '');
+    };
+    const docAct = (e, c, redraw) => {
+        const b = e.target.closest('[data-da]'); if (!b) return false;
+        const [a, id] = b.dataset.da.split(':'), D = NX.db;
+        if (a === 'paid') {
+            const inv = D.invoices.find(x => x.id === id); if (!inv || inv.customerId !== c.id) return true;
+            NX.confirm(`Haben Sie ${inv.kind || 'die Rechnung'} ${inv.number} (${NX.eur(NX.open(inv))}) bezahlt? Wir prüfen den Zahlungseingang und bestätigen ihn.`, 'Ja, ich habe bezahlt').then(ok => {
+                if (!ok) return; inv.claim = { at: Date.now() }; delete inv.claimResult; NX.log('Kunde meldet Zahlung: ' + inv.number); NX.save(); NX.toast('Danke! Wir prüfen Ihre Zahlung.'); redraw();
+            });
+            return true;
+        }
+        const o = D.offers.find(x => x.id === id); if (!o || o.customerId !== c.id || o.status !== 'Versendet') return true;
+        const kind = o.type || 'Angebot', fin = (st, reason) => { o.status = st; o.decision = { st, at: Date.now(), reason: reason || '' }; NX.log('Kunde hat ' + kind + ' ' + o.number + (st === 'Angenommen' ? ' angenommen' : ' abgelehnt')); NX.save(); NX.toast(kind + (st === 'Angenommen' ? ' angenommen. Vielen Dank!' : ' abgelehnt. Danke für Ihre Rückmeldung.')); redraw(); };
+        if (a === 'accept') NX.confirm(`${kind} ${o.number} (${NX.eur(NX.total(o))}) verbindlich annehmen?`, 'Annehmen').then(ok => { if (ok) fin('Angenommen'); });
+        else {
+            const m = NX.modal(kind + ' ablehnen', `<form novalidate><p class="mut">Bitte teilen Sie uns kurz mit, warum Sie ${esc(kind)} ${esc(o.number)} ablehnen.</p><div class="field"><label for="rjr">Grund <span class="req">*</span></label><textarea id="rjr" name="reason" rows="4" maxlength="1000"></textarea><small class="err"></small></div><div class="acts"><button class="btn" type="submit">Ablehnen</button><button type="button" class="btn ghost" data-cancel>Abbrechen</button></div></form>`);
+            const f = NX.$('form', m.body); NX.$('[data-cancel]', f).onclick = () => m.close();
+            f.onsubmit = ev => { ev.preventDefault(); const r = f.reason.value.trim(); if (r.length < 3) { NX.$('.err', f).textContent = 'Bitte einen Grund angeben.'; return; } m.close(); fin('Abgelehnt', r); };
+        }
+        return true;
+    };
     const myInq = c => NX.db.inquiries.filter(i => i.customerId === c.id || i.email.toLowerCase() === c.email.toLowerCase());
     function app() {
         const D = NX.db, root = NX.$('#root'), NAV = [['dashboard', 'Dashboard'], ['anfragen', 'Anfragen'], ['dokumente', 'Dokumente'], ['projekte', 'Projekte'], ['support', 'Support & Wartung'], ['profil', 'Mein Profil']];
@@ -165,7 +199,7 @@
     function dashboard(el, c) {
         const D = NX.db, dc = docs(c), inq = myInq(c), pr = D.projects.filter(p => p.customerId === c.id), done = pr.filter(p => p.status === 'Abgeschlossen'), invs = D.invoices.filter(i => i.customerId === c.id && !i.draft), openSum = invs.reduce((s, i) => s + NX.open(i), 0), unread = (D.chat[c.id] || []).filter(m => m.from === 'team' && !m.r).length, norev = done.filter(p => !D.reviews.some(r => r.projectId === p.id)).length;
         el.innerHTML = `<h1>Willkommen, ${esc(c.first)}</h1><div class="grid" style="margin:20px 0"><button type="button" class="tile kpi" data-go="anfragen"><b>${inq.length}</b><span>Anfragen</span></button><button type="button" class="tile kpi" data-go="dokumente"><b>${dc.length}</b><span>Dokumente</span></button><button type="button" class="tile kpi" data-go="projekte"><b>${done.length}</b><span>Abgeschlossene Projekte</span></button></div>
- <div class="kp">${NX.kpi(invs.filter(i => NX.open(i) > 0).length + norev, 'Offene Aufgaben')}${NX.kpi(NX.eur(openSum), 'Offene Rechnungsbeträge')}${NX.kpi(unread, 'Ungelesene Nachrichten')}</div>
+ <div class="kp">${NX.kpi(invs.filter(i => NX.open(i) > 0).length + norev + D.offers.filter(o => o.customerId === c.id && o.status === 'Versendet' && !o.decision).length, 'Offene Aufgaben')}${NX.kpi(NX.eur(openSum), 'Offene Rechnungsbeträge')}${NX.kpi(unread, 'Ungelesene Nachrichten')}</div>
  <div class="card"><h3>Aktuelle Projektstatus</h3><ul class="list">${pr.map(p => `<li>${esc(p.name)} – ${NX.badge(p.status)}</li>`).join('') || '<li>Noch keine Projekte.</li>'}</ul></div>`;
         el.onclick = e => { const t = e.target.closest('[data-go]'); if (t)
             NX.go(t.dataset.go); };
@@ -173,17 +207,18 @@
     function anfragen(el, c) { const l = myInq(c); el.innerHTML = `<div class="top"><h1>Meine Anfragen</h1><a class="btn" href="anfrage.html">Neue Projektanfrage</a></div>` + (l.length ? NX.table(['Datum', 'Betreff', 'Leistung', 'Status'], l.map(i => ({ id: i.id, cells: [NX.date(i.date), esc(i.subject), esc(i.service || '–'), NX.badge(i.status)] }))) : '<div class="tw"><p class="empty">Sie haben noch keine Anfragen gestellt.</p></div>'); }
     function dokumente(el, c) {
         const l = docs(c);
-        el.innerHTML = '<h1>Meine Dokumente</h1>' + (l.length ? NX.table(['Art', 'Nummer', 'Datum', 'Betrag', 'Status', ''], l.map(d => ({ id: d.k, cells: [esc(d.t), esc(d.n), NX.date(d.d), NX.eur(d.a), NX.badge(d.s), NX.btn('view', d.k, 'Ansehen')] }))) : '<div class="tw"><p class="empty">Es sind noch keine Dokumente für Ihr Konto vorhanden.</p></div>');
-        el.onclick = e => { const b = e.target.closest('[data-act]'); if (!b)
+        el.innerHTML = '<h1>Meine Dokumente</h1>' + (l.length ? NX.table(['Art', 'Nummer', 'Datum', 'Betrag', 'Status', ''], l.map(d => ({ id: d.k, cells: [esc(d.t), esc(d.n), NX.date(d.d), NX.eur(d.a), NX.badge(d.s), NX.btn('view', d.k, 'Ansehen') + ' ' + dact(d)] }))) : '<div class="tw"><p class="empty">Es sind noch keine Dokumente für Ihr Konto vorhanden.</p></div>');
+        el.onclick = e => { if (docAct(e, c, () => dokumente(el, c))) return; const b = e.target.closest('[data-act]'); if (!b)
             return; const [t, id] = b.dataset.id.split(':'), D = NX.db, o = t === 'offer' ? D.offers.find(x => x.id === id) : t === 'invoice' ? D.invoices.find(x => x.id === id) : D.reminders.find(x => x.id === id); if (o && o.customerId === c.id)
             NX.viewDoc(t, o); };
     }
     function projekte(el, c) {
         const D = NX.db, pr = D.projects.filter(p => p.customerId === c.id);
         const mydocs = docs(c);   /* Kostenvoranschlag, Angebot, Rechnungen, Zahlungserinnerungen und Mahnungen je Projekt */
-        const pdocs = pid => { const l = mydocs.filter(d => d.pid === pid); return '<div class="nx-pdoc"><h4>Dokumente</h4>' + (l.length ? '<ul>' + l.map(d => `<li><span><strong>${esc(d.t)} ${esc(d.n)}</strong> <small class="mut">${NX.date(d.d)} · ${NX.eur(d.a)}</small> ${NX.badge(d.s)}</span><button type="button" class="btn ghost sm" data-doc="${esc(d.k)}">Ansehen</button></li>`).join('') + '</ul>' : '<p class="mut">Noch keine Dokumente.</p>') + '</div>'; };
+        const pdocs = pid => { const l = mydocs.filter(d => d.pid === pid); return '<div class="nx-pdoc"><h4>Dokumente</h4>' + (l.length ? '<ul>' + l.map(d => `<li><span><strong>${esc(d.t)} ${esc(d.n)}</strong> <small class="mut">${NX.date(d.d)} · ${NX.eur(d.a)}</small> ${NX.badge(d.s)}</span><span class="nx-pda"><button type="button" class="btn ghost sm" data-doc="${esc(d.k)}">Ansehen</button>${dact(d)}</span></li>`).join('') + '</ul>' : '<p class="mut">Noch keine Dokumente.</p>') + '</div>'; };
         const draw = () => { el.innerHTML = '<h1>Meine Projekte</h1>' + (pr.length ? `<div class="grid g3">${pr.map(p => { const rv = D.reviews.find(r => r.projectId === p.id); return `<div class="card"><h3>${esc(p.name)}</h3><p>${esc(p.desc)}</p><p style="margin-top:8px">${NX.badge(p.status)} · ${NX.date(p.start)} – ${NX.date(p.end)}</p>${pdocs(p.id)}${p.status === 'Abgeschlossen' ? (rv ? `<p style="margin-top:10px">Ihre Bewertung: ${'★'.repeat(rv.stars)}${'☆'.repeat(5 - rv.stars)}<br>${esc(rv.text)}</p>` : `<button type="button" class="btn" data-rv="${p.id}">Projekt bewerten</button>`) : ''}</div>`; }).join('')}</div>` : '<div class="tw"><p class="empty">Noch keine Projekte.</p></div>'); };
         el.onclick = e => {
+            if (docAct(e, c, draw)) return;
             const dd = e.target.closest('[data-doc]');
             if (dd) { const [t, id] = dd.dataset.doc.split(':'), o = t === 'offer' ? D.offers.find(x => x.id === id) : t === 'invoice' ? D.invoices.find(x => x.id === id) : D.reminders.find(x => x.id === id); if (o && o.customerId === c.id) NX.viewDoc(t, o); return; }
             const b = e.target.closest('[data-rv]');
