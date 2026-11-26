@@ -5,7 +5,7 @@ const http = require('http'), fs = require('fs'), path = require('path'), crypto
 const { Pool } = require('pg');
 const automation = require('./automation');
 const PORT = process.env.PORT || 3000, ROOT = path.join(__dirname, 'public'), DBKEY = 'nx_db_v1', SESSION_MS = 8 * 36e5;
-/* Betriebsart: "public" (Webseite + Kundenportal, ohne Admin), "admin" (nur Administration) oder "all" (alles, z. B. lokal/Test). Beide Apps teilen sich dieselbe Datenbank. */
+/* Betriebsart: "public" (Webseite + Kundenportal, ohne Admin), "admin" (nur Administration) oder "all" (alles in einer App). Beide Apps teilen sich dieselbe Datenbank. */
 const MODE = ['public', 'admin'].includes(process.env.NX_MODE) ? process.env.NX_MODE : 'all', PUBLIC_URL = String(process.env.NX_PUBLIC_URL || '').replace(/\/$/, '');
 const ADMIN_KV = /^(nx_accounting_v1|nexora_cal_reminders)$/, STAT_KV = /^nexora_stat_(visits|logins)$/;
 
@@ -66,7 +66,7 @@ async function session(req) {
 }
 const cookieStr = (req, v, ms) => 'nx_sid=' + v + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + Math.floor(ms / 1000) + (/https/.test(req.headers['x-forwarded-proto'] || '') ? '; Secure' : '');
 
-/* Startdaten ohne Kunden-, Test- und Demo-Daten: nur Zugang (auth), Version und Einstellungen bleiben */
+/* Startdaten ohne Kundendaten: nur Zugang (auth), Version und Einstellungen bleiben */
 function stripCustomerData(db) { const o = clone(db); delete o.auth; Object.keys(o).forEach(k => { if (k === 'v' || k === 'settings') return; o[k] = isArr(o[k]) ? [] : isObj(o[k]) ? {} : o[k]; }); return o; }
 
 /* ---------- Ansichten je Rolle ---------- */

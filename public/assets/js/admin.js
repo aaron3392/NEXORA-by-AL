@@ -310,7 +310,7 @@
  <h3>Erinnerungen & Mahnungen (frei konfigurierbar)</h3><div class="row"><div class="field"><label for="f1">Frist Erinnerung (Tage)</label><input id="f1" name="dr" type="number" min="0" value="${s.reminderDays.r}"></div><div class="field"><label for="f2">Frist 1. Mahnung (Tage)</label><input id="f2" name="d1" type="number" min="0" value="${s.reminderDays.m1}"></div><div class="field"><label for="f3">Frist 2. Mahnung (Tage)</label><input id="f3" name="d2" type="number" min="0" value="${s.reminderDays.m2}"></div></div>
  <div class="row"><div class="field"><label for="g1">Gebühr Erinnerung (€)</label><input id="g1" name="fr" type="number" step="0.01" min="0" value="${(s.fees.r / 100).toFixed(2)}"></div><div class="field"><label for="g2">Gebühr 1. Mahnung (€)</label><input id="g2" name="f1" type="number" step="0.01" min="0" value="${(s.fees.m1 / 100).toFixed(2)}"></div><div class="field"><label for="g3">Gebühr 2. Mahnung (€)</label><input id="g3" name="f2" type="number" step="0.01" min="0" value="${(s.fees.m2 / 100).toFixed(2)}"></div></div>
  <h3>E-Mail (FormSubmit)</h3><div class="field"><label for="fs">Empfängeradresse für FormSubmit</label><input id="fs" name="formsubmit" type="email" value="${esc(s.formsubmit)}"></div>
- <div class="acts settings-actions"><button class="btn" type="submit">Einstellungen speichern</button><button type="button" class="btn ghost" id="rs">Demo-Daten zurücksetzen</button></div></form>`;
+ <div class="acts settings-actions"><button class="btn" type="submit">Einstellungen speichern</button></div></form>`;
         const f = NX.$('form', el);
         f.onsubmit = NX.guard(async (e) => {
             e.preventDefault();
@@ -327,12 +327,6 @@
             NX.log('Einstellungen gespeichert');
             NX.toast('Einstellungen gespeichert.');
         });
-        NX.$('#rs', el).onclick = async () => {
-            if (await NX.confirm('Alle Daten (inkl. Kunden, Rechnungen, Admin-Passwort) auf den Ausgangszustand zurücksetzen?', 'Zurücksetzen')) {
-                await NX.reset();
-                location.reload();
-            }
-        };
     }
     /* ---- Backup: manueller Export / Import (automatisches Backup ergänzt admin-extras.js) ---- */
     function backup(el) {
@@ -397,7 +391,7 @@
         const config = {
             packages: { title: 'Paket', fields: [{ key: 'name', label: 'Paketname', placeholder: 'z. B. Business-Website' }, { key: 'price', label: 'Preis', placeholder: 'z. B. ab 990 €' }, { key: 'desc', label: 'Beschreibung / enthaltene Leistungen', placeholder: 'Was ist im Paket enthalten?', wide: true }, { key: 'support', label: 'Supportumfang', placeholder: 'z. B. E-Mail-Support, Reaktionszeit 2 Werktage', wide: true }] },
             hosting: { title: 'Hosting-Angebot', fields: [{ key: 'name', label: 'Name', placeholder: 'z. B. Hosting Plus' }, { key: 'price', label: 'Preis', placeholder: 'z. B. 19 € / Monat' }, { key: 'desc', label: 'Beschreibung', placeholder: 'Leistungsumfang und Betreuung', wide: true }] },
-            showcase: { title: 'Projektbeispiel', fields: [{ key: 'name', label: 'Projektname', placeholder: 'z. B. Demo: Unternehmenswebsite' }, { key: 'cat', label: 'Kategorie', placeholder: 'z. B. Webdesign' }, { key: 'status', label: 'Status', placeholder: 'z. B. Beispielprojekt' }, { key: 'desc', label: 'Beschreibung', placeholder: 'Kurze Projektbeschreibung', wide: true }] }
+            showcase: { title: 'Projektbeispiel', fields: [{ key: 'name', label: 'Projektname', placeholder: 'z. B. Unternehmenswebsite' }, { key: 'cat', label: 'Kategorie', placeholder: 'z. B. Webdesign' }, { key: 'status', label: 'Status', placeholder: 'z. B. Beispielprojekt' }, { key: 'desc', label: 'Beschreibung', placeholder: 'Kurze Projektbeschreibung', wide: true }] }
         };
         const collections = {
             packages: (Array.isArray(s.packages) ? s.packages : []).map(x => ({ name: x.name || '', price: x.price || '', desc: x.desc || '', support: x.support || '' })),

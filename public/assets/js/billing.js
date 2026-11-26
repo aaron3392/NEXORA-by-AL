@@ -209,7 +209,7 @@
         }
     }
 
-    /* ---------- Monatliche Verträge (lokale Demo, manuelle Rechnungserstellung) ---------- */
+    /* ---------- Monatliche Verträge (manuelle Rechnungserstellung) ---------- */
     const addMonth = value => { const d = new Date((value || NX.today()) + 'T12:00:00'); const day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + 1); const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); d.setDate(Math.min(day, last)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
     B.createSubscriptionFromProject = (project, done) => {
         if (!project || project.paymentModel !== 'monatlich') return;

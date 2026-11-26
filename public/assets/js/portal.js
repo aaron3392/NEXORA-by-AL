@@ -1,10 +1,10 @@
-/* NEXORA by AL – Kundenportal (lokale Demo, ohne Backend) */
+/* NEXORA by AL – Kundenportal  */
 (function () {
     'use strict';
     const NX = window.NX, esc = NX.esc;
     NX.ready.then(() => {
         NX.layout();
-        // Abgelaufene lokale Löschvormerkungen beim nächsten Start endgültig aus dem Demo-Loginbestand entfernen.
+        // Abgelaufene lokale Löschvormerkungen beim nächsten Start endgültig aus dem Kontobestand entfernen.
         const now = Date.now();
         NX.db.customers = NX.db.customers.filter(c => c.status !== 'loeschung_vorgemerkt' || !c.restoreUntil || now <= c.restoreUntil);
         NX.save();
@@ -229,7 +229,7 @@
 
             async function requestDeletionCode() {
                 const apiBase = window.NEXORA_API_BASE || '';
-                let demoCode = '', requestId = '', demoCodeExpiresAt = 0, demoAttempts = 0;
+                let secCode = '', requestId = '', codeExpiresAt = 0, codeAttempts = 0;
                 const sendFormSubmit = (recipient, payload) => NX.formsubmit(Object.assign({ _to: recipient }, payload)).then(result => { if (!result.ok) throw new Error(result.msg); return result; });
                 if (apiBase) {
                     try {
@@ -239,9 +239,9 @@
                         requestId = result.requestId;
                     } catch (error) { NX.toast(error.message || 'E-Mail-Versand fehlgeschlagen.'); return; }
                 } else {
-                    const bytes = new Uint32Array(1); crypto.getRandomValues(bytes); demoCode = String(bytes[0] % 1000000).padStart(6, '0'); demoCodeExpiresAt = Date.now() + 10 * 60 * 1000;
+                    const bytes = new Uint32Array(1); crypto.getRandomValues(bytes); secCode = String(bytes[0] % 1000000).padStart(6, '0'); codeExpiresAt = Date.now() + 10 * 60 * 1000;
                     try {
-                        await sendFormSubmit(c.email, { _subject: 'Ihr NEXORA Sicherheitscode zur Kontolöschung', Name: c.first + ' ' + c.last, Sicherheitscode: demoCode, Gültigkeit: '10 Minuten', Hinweis: 'Wenn Sie diese Löschung nicht angefordert haben, ignorieren Sie diese E-Mail.' });
+                        await sendFormSubmit(c.email, { _subject: 'Ihr NEXORA Sicherheitscode zur Kontolöschung', Name: c.first + ' ' + c.last, Sicherheitscode: secCode, Gültigkeit: '10 Minuten', Hinweis: 'Wenn Sie diese Löschung nicht angefordert haben, ignorieren Sie diese E-Mail.' });
                     } catch (error) { NX.toast('Sicherheitscode konnte nicht per FormSubmit versendet werden: ' + error.message); return; }
                 }
                 const codeModal = NX.modal('E-Mail-Code – Schritt 2 von 3', `<p>Gib den einmaligen sechsstelligen Sicherheitscode ein, der an <b>${esc(c.email)}</b> gesendet wurde. Der Code ist 10 Minuten gültig.</p><form id="delete-code-form" novalidate><div class="field"><label for="delete-code">Einmaliger Sicherheitscode</label><input id="delete-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="6-stelliger Code" required></div><p class="err" id="delete-code-error" role="alert"></p><div class="acts"><button type="button" class="btn ghost" data-cancel>Abbrechen</button><button type="submit" class="btn">Code bestätigen</button></div></form>`);
@@ -258,10 +258,10 @@
                             const result = await response.json(); verified = response.ok && result.verified === true;
                         } catch (_) { verified = false; }
                     } else {
-                        demoAttempts += 1;
-                        verified = demoAttempts <= 5 && Date.now() <= demoCodeExpiresAt && entered === demoCode;
+                        codeAttempts += 1;
+                        verified = codeAttempts <= 5 && Date.now() <= codeExpiresAt && entered === secCode;
                     }
-                    if (!verified) { err.textContent = demoAttempts >= 5 && !apiBase ? 'Zu viele Fehlversuche. Bitte starte den Löschvorgang erneut.' : 'Der Code ist ungültig oder abgelaufen. Bitte überprüfe deine Eingabe.'; return; }
+                    if (!verified) { err.textContent = codeAttempts >= 5 && !apiBase ? 'Zu viele Fehlversuche. Bitte starte den Löschvorgang erneut.' : 'Der Code ist ungültig oder abgelaufen. Bitte überprüfe deine Eingabe.'; return; }
                     codeModal.close(); finalDeletionConfirmation(apiBase, requestId);
                 });
             }
