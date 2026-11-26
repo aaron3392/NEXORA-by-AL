@@ -128,9 +128,9 @@
     }
     const docs = c => {
         const D = NX.db, L = [];
-        D.offers.filter(o => o.customerId === c.id && o.status !== 'Entwurf').forEach(o => L.push({ k: 'offer:' + o.id, t: o.type, n: o.number, d: o.date, a: NX.total(o), s: NX.offStatus(o) }));
-        D.invoices.filter(i => i.customerId === c.id && !i.draft).forEach(i => L.push({ k: 'invoice:' + i.id, t: i.kind, n: i.number, d: i.date, a: NX.total(i), s: NX.invStatus(i) }));
-        D.reminders.filter(r => r.customerId === c.id).forEach(r => { const i = D.invoices.find(x => x.id === r.invoiceId) || {}; L.push({ k: 'reminder:' + r.id, t: r.type, n: r.number, d: r.date, a: (NX.open(i) || 0) + (r.fee || 0), s: r.type }); });
+        D.offers.filter(o => o.customerId === c.id && o.status !== 'Entwurf').forEach(o => L.push({ pid: o.projectId, k: 'offer:' + o.id, t: o.type, n: o.number, d: o.date, a: NX.total(o), s: NX.offStatus(o) }));
+        D.invoices.filter(i => i.customerId === c.id && !i.draft).forEach(i => L.push({ pid: i.projectId, k: 'invoice:' + i.id, t: i.kind, n: i.number, d: i.date, a: NX.total(i), s: NX.invStatus(i) }));
+        D.reminders.filter(r => r.customerId === c.id).forEach(r => { const i = D.invoices.find(x => x.id === r.invoiceId) || {}; L.push({ pid: i.projectId, k: 'reminder:' + r.id, t: r.type, n: r.number, d: r.date, a: (NX.open(i) || 0) + (r.fee || 0), s: r.type }); });
         return L.sort((a, b) => b.d.localeCompare(a.d));
     };
     const myInq = c => NX.db.inquiries.filter(i => i.customerId === c.id || i.email.toLowerCase() === c.email.toLowerCase());
@@ -180,8 +180,12 @@
     }
     function projekte(el, c) {
         const D = NX.db, pr = D.projects.filter(p => p.customerId === c.id);
-        const draw = () => { el.innerHTML = '<h1>Meine Projekte</h1>' + (pr.length ? `<div class="grid g3">${pr.map(p => { const rv = D.reviews.find(r => r.projectId === p.id); return `<div class="card"><h3>${esc(p.name)}</h3><p>${esc(p.desc)}</p><p style="margin-top:8px">${NX.badge(p.status)} · ${NX.date(p.start)} – ${NX.date(p.end)}</p>${p.status === 'Abgeschlossen' ? (rv ? `<p style="margin-top:10px">Ihre Bewertung: ${'★'.repeat(rv.stars)}${'☆'.repeat(5 - rv.stars)}<br>${esc(rv.text)}</p>` : `<button type="button" class="btn" data-rv="${p.id}">Projekt bewerten</button>`) : ''}</div>`; }).join('')}</div>` : '<div class="tw"><p class="empty">Noch keine Projekte.</p></div>'); };
+        const mydocs = docs(c);   /* Kostenvoranschlag, Angebot, Rechnungen, Zahlungserinnerungen und Mahnungen je Projekt */
+        const pdocs = pid => { const l = mydocs.filter(d => d.pid === pid); return '<div class="nx-pdoc"><h4>Dokumente</h4>' + (l.length ? '<ul>' + l.map(d => `<li><span><strong>${esc(d.t)} ${esc(d.n)}</strong> <small class="mut">${NX.date(d.d)} · ${NX.eur(d.a)}</small> ${NX.badge(d.s)}</span><button type="button" class="btn ghost sm" data-doc="${esc(d.k)}">Ansehen</button></li>`).join('') + '</ul>' : '<p class="mut">Noch keine Dokumente.</p>') + '</div>'; };
+        const draw = () => { el.innerHTML = '<h1>Meine Projekte</h1>' + (pr.length ? `<div class="grid g3">${pr.map(p => { const rv = D.reviews.find(r => r.projectId === p.id); return `<div class="card"><h3>${esc(p.name)}</h3><p>${esc(p.desc)}</p><p style="margin-top:8px">${NX.badge(p.status)} · ${NX.date(p.start)} – ${NX.date(p.end)}</p>${pdocs(p.id)}${p.status === 'Abgeschlossen' ? (rv ? `<p style="margin-top:10px">Ihre Bewertung: ${'★'.repeat(rv.stars)}${'☆'.repeat(5 - rv.stars)}<br>${esc(rv.text)}</p>` : `<button type="button" class="btn" data-rv="${p.id}">Projekt bewerten</button>`) : ''}</div>`; }).join('')}</div>` : '<div class="tw"><p class="empty">Noch keine Projekte.</p></div>'); };
         el.onclick = e => {
+            const dd = e.target.closest('[data-doc]');
+            if (dd) { const [t, id] = dd.dataset.doc.split(':'), o = t === 'offer' ? D.offers.find(x => x.id === id) : t === 'invoice' ? D.invoices.find(x => x.id === id) : D.reminders.find(x => x.id === id); if (o && o.customerId === c.id) NX.viewDoc(t, o); return; }
             const b = e.target.closest('[data-rv]');
             if (!b)
                 return;

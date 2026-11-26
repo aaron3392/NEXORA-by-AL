@@ -103,6 +103,9 @@ function customerView(db, id) {
   const v = publicView(db), mine = x => x && x.customerId === id;
   v.customers = (db.customers || []).filter(c => c.id === id);
   ['projects', 'projectArchive', 'offers', 'invoices', 'reminders', 'time', 'support', 'subscriptions'].forEach(k => { if (isArr(db[k])) v[k] = db[k].filter(mine); });
+  v.offers = (v.offers || []).filter(o => o.status !== 'Entwurf');   /* Entwürfe sieht der Kunde nie (auch nicht über die Schnittstelle) */
+  v.invoices = (v.invoices || []).filter(i => !i.draft);
+  const vis = new Set(v.invoices.map(i => i.id)); v.reminders = (v.reminders || []).filter(r => vis.has(r.invoiceId));
   v.inquiries = (db.inquiries || []).filter(i => mine(i) || (v.customers[0] && String(i.email || '').toLowerCase() === String(v.customers[0].email || '').toLowerCase()));
   if (isObj(db.chat)) v.chat = db.chat[id] ? { [id]: db.chat[id] } : {};
   return v;

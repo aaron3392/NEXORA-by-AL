@@ -2929,3 +2929,9 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 
 .nx-pdocs { margin-top:18px; padding-top:14px; border-top:1px solid var(--bd); }
 .nx-pdocs .acts { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+
+/* Kundenportal: Dokumente je Projekt */
+.nx-pdoc { margin-top:12px; padding-top:10px; border-top:1px solid var(--bd, rgba(180,120,255,.25)); }
+.nx-pdoc h4 { margin:0 0 6px; }
+.nx-pdoc ul { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+.nx-pdoc li { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }

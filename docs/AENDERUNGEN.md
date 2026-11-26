@@ -328,3 +328,7 @@
 ## Nachtrag 42 – Ablauf Anfrage → Projekt → Dokumente
 - Anfrage: Knopf „Annehmen und Projekt anlegen“. Die angenommene Anfrage verschwindet aus „Anfragen“ (bleibt im Projekt verknüpft, ihre Dateien erscheinen dort) und der Projekt-Dialog öffnet sich sofort.
 - Projekt-Dialog: Bereich „Dokumente zum Projekt“ mit „+ Kostenvoranschlag“, „+ Angebot“, „+ Rechnung“ (Kunde und Projekt vorbelegt) sowie Ansehen, Bearbeiten und „Per E-Mail senden“ je Dokument. Die Menüpunkte unter Verrechnung bleiben als Gesamtübersicht.
+
+## Nachtrag 43 – Dokumente im Kundenportal je Projekt
+- Kundenportal → Projekte: jede Projektkarte zeigt „Dokumente“ (Kostenvoranschlag, Angebot, Rechnungen, Zahlungserinnerungen, Mahnungen) mit Status und „Ansehen“. Das Menü „Dokumente“ bleibt als Gesamtliste.
+- Server: Der Kunde erhält über die Schnittstelle nur noch versendete Angebote, nicht-Entwurf-Rechnungen und zugehörige Erinnerungen/Mahnungen – Entwürfe sind für Kunden nie abrufbar.
