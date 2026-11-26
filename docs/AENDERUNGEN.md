@@ -295,7 +295,7 @@
 - Zahlungen mit Rechnungsnummer (R-JJJJ-NNNN) im Text werden automatisch der Rechnung zugeordnet, sofern der Betrag zum offenen Betrag passt.
 - Mitgelieferte Bibliotheken (`assets/vendor/`): pdf.js (Apache-2.0) und JSZip (MIT). Entfernt: „Synchronisierung testen“.
 
-## Nachtrag 37 – Layout, Live-Abgleich, Benachrichtigungen (noch nicht veröffentlicht)
+## Nachtrag 37 – Layout, Live-Abgleich, Benachrichtigungen
 - Admin: feste Arbeitsfläche (Kopf und Fuß immer sichtbar), Seitenwahl (‹ 1 2 3 ›) für Menü und Listen bei Platzmangel (`assets/js/admin-layout.js`). Öffentliche Seite: Kopfleiste bleibt oben. Nach-oben-Button entfernt.
 - Live-Abgleich (`assets/js/live-sync.js`): die Administration prüft alle 4 s (im Hintergrund alle 15 s), ob sich die Datenbank geändert hat, und übernimmt Neues in die offene Seite, sobald gerade nichts bearbeitet wird. Neue Anfragen, Kundenregistrierungen, Support-Anfragen und Chat-Nachrichten lösen Hinweis, Ton, Tab-Titel-Zähler und (nach Erlaubnis über die Glocke in der Kopfleiste) eine Systembenachrichtigung am PC/Smartphone aus (`admin/sw.js`, nur über HTTPS).
 
@@ -309,3 +309,13 @@
   - Die Rechte werden **auf dem Server** bei jeder Anfrage aus dem Konto gelesen: nicht freigegebene Daten werden gar nicht ausgeliefert, Schreibzugriffe werden verworfen, Backups, Konten und Automatik bleiben Administratoren vorbehalten. Änderungen an Rechten oder Sperren wirken sofort.
   - Kunden können sich nie im Adminbereich anmelden. Eigenes Konto und letzter Administrator können nicht gelöscht, gesperrt oder herabgestuft werden.
   - Kunden-Datensätze können mit Server nicht mehr die Rolle „Mitarbeiter“ erhalten (diese Rolle sperrte das Kundenportal).
+
+## Nachtrag 39 – Dateien direkt an Anfrage und Projekt, kleine Korrekturen
+- Der Menüpunkt „Dateien“ im Adminbereich entfällt (auch das Mitarbeiter-Recht „Dateien“). Dateien werden dort hinzugefügt, wo sie gebraucht werden: im Dialog einer **Anfrage** („Dateien zur Anfrage“, intern – der Kunde sieht sie nie) und im Dialog eines **Projekts** (für den Kunden im Portal sichtbar; Dateien der ursprünglichen Anfrage bleiben intern und werden dort mit „aus der Anfrage“ angezeigt).
+- Mitarbeiter dürfen Dateien nur in Bereichen sehen/hochladen/löschen, die ihnen freigegeben sind (Anfragen bzw. Projekte); Administratoren überall.
+- Kundenportal: Knopf „Konto erstellen“ (statt „Konto lokal erstellen“). Selbst registrierte Kunden erhalten immer die Rolle „Kunde“ (Server erzwingt das).
+
+## Nachtrag 40 – Kopfleiste und Profil
+- Admin-Kopfleiste: Titel „Administration“ entfernt; Live-Anzeige und Glocke rechts, daneben der runde Profil-Knopf mit den Initialen des angemeldeten Kontos (aus Name, sonst Benutzername), dann „Abmelden“.
+- Profil-Dialog (Knopf mit Initialen): jeder Administrator/Mitarbeiter ändert Name, Benutzername und Passwort (Passwort nur mit bisherigem Passwort). Der Menüpunkt „Passwort ändern“ entfällt. Server: `PUT /api/me`.
+- Administratoren ändern in der Userverwaltung Name, Benutzername und Passwort jedes Kontos. Danach werden dessen andere Anmeldungen beendet. Das Passwort kann nur noch über diese Wege geändert werden (nicht mehr über die Datensynchronisierung).

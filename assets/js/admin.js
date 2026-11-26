@@ -30,6 +30,7 @@
         const m = NX.modal('Anfrage ' + i.id, `<h3>Kontaktdaten und Projekt</h3><dl class="dl"><dt>Datum</dt><dd>${NX.date(i.date)}</dd><dt>Name</dt><dd>${nm(i)}</dd><dt>E-Mail</dt><dd>${esc(i.email)}</dd><dt>Telefon</dt><dd>${esc(i.phone || '–')}</dd>${i.company ? `<dt>Firma</dt><dd>${esc(i.company)}${i.vatId ? ' · UID ' + esc(i.vatId) : ''}</dd>` : ''}${i.street ? `<dt>Rechnungsadresse</dt><dd>${esc(i.street)} ${esc(i.no || '')}, ${esc(i.zip || '')} ${esc(i.city || '')}, ${esc(i.country || '')}</dd>` : ''}${i.contactPref ? `<dt>Bevorzugter Kontakt</dt><dd>${esc(i.contactPref)}</dd>` : ''}<dt>Betreff</dt><dd>${esc(i.subject)}</dd><dt>Leistung</dt><dd>${esc(i.service || '–')}</dd><dt>Projektbeschreibung</dt><dd>${esc(i.message)}</dd>${detailRows}<dt>Budget / Zeitrahmen</dt><dd>${esc(i.budget || '–')} / ${esc(i.timeframe || '–')}</dd>${i.wishDate ? `<dt>Wunschtermin</dt><dd>${NX.date(i.wishDate)}</dd>` : ''}</dl><h3>Zahlung, Paket und Hosting</h3><dl class="dl"><dt>Zahlungsmodell</dt><dd>${esc(i.paymentModel || 'Nicht angegeben')}</dd><dt>Monatliches Paket</dt><dd>${esc(i.monthlyPackage || '–')}</dd><dt>Monatspreis</dt><dd>${esc(i.monthlyPrice || '–')}</dd><dt>Paketleistungen</dt><dd>${esc(i.packageDescription || '–')}</dd><dt>Enthaltener Support</dt><dd>${esc(i.packageSupport || '–')}</dd><dt>Hosting</dt><dd>${esc(i.hostingModel === 'eigen' ? 'Eigenes Hosting' : i.hostingModel === 'nexora' ? 'NEXORA Hosting' : '–')}</dd><dt>Hosting-Details</dt><dd>${esc(i.hostingNotes || '–')}</dd><dt>Zusatzinformationen</dt><dd>${esc(i.notes || '–')}</dd><dt>Quelle</dt><dd>${esc(i.source)}</dd></dl>
  <form novalidate><div class="field"><label for="is">Status</label><select id="is" name="status">${sel(IST, i.status)}</select></div><div class="field"><label for="in">Interne Notizen</label><textarea id="in" name="notes">${esc(i.notes)}</textarea></div>
  <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-ar>Archivieren</button><button type="button" class="btn ghost" data-pr${i.projectId ? ' disabled' : ''}>${i.projectId ? 'Bereits übernommen' : 'In Projekt übernehmen'}</button><button type="button" class="btn ghost" data-ml>Antwort vorbereiten</button></div></form>`);
+        if (NX.attachments) NX.attachments(m.body, { owner: 'inquiry:' + i.id, title: 'Dateien zur Anfrage', note: 'Intern – der Kunde sieht diese Dateien nicht.' });
         const f = NX.$('form', m.body);
         f.onsubmit = e => { e.preventDefault(); Object.assign(i, NX.fd(f)); NX.log('Anfrage aktualisiert: ' + i.id); NX.toast('Anfrage gespeichert.'); m.close(); done(); };
         NX.$('[data-ar]', m.body).onclick = async () => {
@@ -92,6 +93,7 @@
  <div class="field"><label for="pno">Interne Notizen</label><textarea id="pno" name="notes">${esc(p.notes)}</textarea></div>
  ${isNew ? '' : `<p class="mut">Angebote: ${D.offers.filter(o => o.projectId === p.id).map(o => esc(o.number)).join(', ') || '–'}<br>Rechnungen: ${D.invoices.filter(o => o.projectId === p.id).map(o => esc(o.number)).join(', ') || '–'}</p>`}
  <div class="acts"><button class="btn" type="submit">Speichern</button>${!isNew && p.paymentModel === 'monatlich' && !(D.subscriptions || []).some(x => x.projectId === p.id) ? '<button type="button" class="btn ghost" data-subscription>Monatsvertrag anlegen</button>' : ''}${!isNew && p.status !== 'Abgeschlossen' ? '<button type="button" class="btn ghost" data-fin>Projekt abschließen</button>' : ''}</div></form>`);
+        if (!isNew && NX.attachments) NX.attachments(m.body, { owner: 'project:' + p.id, also: p.inquiryId ? ['inquiry:' + p.inquiryId] : [], title: 'Dateien zum Projekt', note: 'Dateien dieses Projekts sieht auch der Kunde im Portal. Dateien der ursprünglichen Anfrage bleiben intern.' });
         const f = NX.$('form', m.body);
         f.onsubmit = NX.guard(async (e) => {
             e.preventDefault();
@@ -264,11 +266,11 @@
         if (button)
             button.onclick = () => {
                 modal.close();
-                location.hash = 'passwort';
+                NX.profile();
             };
     }
     /* ---- Konten für den Adminbereich (nur mit Server): Administratoren und Mitarbeiter ---- */
-    const AREAS = [['anfragen', 'Anfragen', 'sehen und bearbeiten'], ['kalender', 'Kalender', 'sehen'], ['projekte', 'Projekte & Support', 'sehen und bearbeiten'], ['verrechnung', 'Verrechnung', 'Angebote, Rechnungen, Mahnungen, Verträge'], ['buchhaltung', 'Buchhaltung', 'Ausgaben, Belege, Bankbuchungen'], ['finanzen', 'Finanzen', 'Übersicht ansehen'], ['zeiterfassung', 'Zeiterfassung', 'Zeiten erfassen'], ['kunden', 'Userverwaltung', 'Kunden und Chat'], ['einstellungen', 'Einstellungen', 'Firmendaten, Website'], ['dateien', 'Dateien', 'hochladen und ansehen']];
+    const AREAS = [['anfragen', 'Anfragen', 'sehen und bearbeiten'], ['kalender', 'Kalender', 'sehen'], ['projekte', 'Projekte & Support', 'sehen und bearbeiten'], ['verrechnung', 'Verrechnung', 'Angebote, Rechnungen, Mahnungen, Verträge'], ['buchhaltung', 'Buchhaltung', 'Ausgaben, Belege, Bankbuchungen'], ['finanzen', 'Finanzen', 'Übersicht ansehen'], ['zeiterfassung', 'Zeiterfassung', 'Zeiten erfassen'], ['kunden', 'Userverwaltung', 'Kunden und Chat'], ['einstellungen', 'Einstellungen', 'Firmendaten, Website']];
     const sapi = (m, url, body) => fetch(url, { method: m, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(r => r.json().catch(() => ({})).then(j => ({ ok: r.ok, j })), () => ({ ok: false, j: { error: 'Server nicht erreichbar.' } }));
     const strongPw = p => p.length >= 12 && /[A-Za-z]/.test(p) && /\d/.test(p);
     function staffModal(a, role0, done) {
@@ -277,7 +279,7 @@
     <form novalidate>
       <div class="row">
         <div class="field"><label for="sn">Name</label><input id="sn" name="name" value="${esc(a ? a.name : '')}" autocomplete="off"></div>
-        <div class="field"><label for="su2">Benutzername <span class="req">*</span></label><input id="su2" name="user" value="${esc(a ? a.user : '')}" autocomplete="off" ${isNew ? '' : 'readonly'}></div>
+        <div class="field"><label for="su2">Benutzername <span class="req">*</span></label><input id="su2" name="user" value="${esc(a ? a.user : '')}" autocomplete="off"></div>
       </div>
       <div class="row">
         <div class="field"><label for="sr">Rolle</label><select id="sr" name="role" ${me ? 'disabled' : ''}><option value="employee"${role === 'employee' ? ' selected' : ''}>Mitarbeiter (nur freigegebene Bereiche)</option><option value="admin"${role === 'admin' ? ' selected' : ''}>Administrator (alles)</option></select></div>
@@ -302,7 +304,7 @@
             if (r === 'employee' && !perms.length && !await NX.confirm('Es ist kein Bereich ausgewählt. Der Mitarbeiter sieht dann nur das Dashboard. Trotzdem speichern?', 'Speichern')) return;
             const body = { name: f.name.value.trim(), role: r, perms, status: me ? 'aktiv' : f.status.value };
             if (pw) body.hash = await NX.hash(pw);
-            if (isNew) body.user = user;
+            if (isNew) body.user = user; else if (user !== a.user) body.newUser = user;
             const res = await sapi(isNew ? 'POST' : 'PUT', isNew ? '/api/admins' : '/api/admins/' + encodeURIComponent(a.user), body);
             if (!res.ok) { err.textContent = res.j.error || 'Nicht möglich.'; return; }
             NX.log((isNew ? 'Konto angelegt: ' : 'Konto geändert: ') + user); NX.toast(isNew ? 'Konto angelegt.' : 'Gespeichert.'); m.close(); done();
@@ -477,30 +479,48 @@
 
 
     /* ---- Passwort ändern ---- */
-    function passwort(el) {
-        el.innerHTML = `<h1>Passwort ändern</h1><form class="card formcard" novalidate><div class="field"><label for="w1">Bisheriges Passwort</label><input id="w1" name="old" type="password" autocomplete="current-password"></div><div class="field"><label for="w2">Neues Passwort</label><input id="w2" name="n1" type="password" autocomplete="new-password"></div><div class="field"><label for="w3">Neues Passwort wiederholen</label><input id="w3" name="n2" type="password" autocomplete="new-password"></div><button class="btn" type="submit">Passwort ändern</button></form>`;
-        const f = NX.$('form', el);
+    /* ---- Mein Profil (Knopf mit Initialen in der Kopfleiste): Name, Benutzername, Passwort ---- */
+    NX.profile = function () {
+        const A = NX.db.auth || {}, BE = NX.backend, srv = !!(BE && BE.on);
+        const m = NX.modal('Mein Profil', `<form novalidate>
+      <div class="nx-me-big" aria-hidden="true">${NX.initials()}</div>
+      <p class="mut">${A.role === 'employee' ? 'Mitarbeiter' : 'Administrator'}</p>
+      <div class="row"><div class="field"><label for="mn">Name</label><input id="mn" name="name" value="${esc(A.name || '')}" autocomplete="name"></div>
+      <div class="field"><label for="mu">Benutzername</label><input id="mu" name="user" value="${esc(A.user || '')}" autocomplete="username"></div></div>
+      <h3>Passwort ändern</h3><p class="mut">Nur ausfüllen, wenn das Passwort geändert werden soll (mind. 12 Zeichen, Buchstaben und Zahlen).</p>
+      <div class="field"><label for="mo">Bisheriges Passwort</label><div class="nx-password-wrap"><input id="mo" name="old" type="password" autocomplete="current-password"></div></div>
+      <div class="row"><div class="field"><label for="m1">Neues Passwort</label><div class="nx-password-wrap"><input id="m1" name="n1" type="password" autocomplete="new-password"></div></div>
+      <div class="field"><label for="m2">Neues Passwort wiederholen</label><div class="nx-password-wrap"><input id="m2" name="n2" type="password" autocomplete="new-password"></div></div></div>
+      <p class="err" role="alert"></p>
+      <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-cancel>Abbrechen</button></div></form>`);
+        const f = NX.$('form', m.body), err = NX.$('.err', f);
+        NX.$('[data-cancel]', f).onclick = () => m.close();
         f.onsubmit = NX.guard(async (e) => {
-            e.preventDefault();
-            if (!NX.check(f, { old: ['req'], n1: ['req', 'pw'], n2: ['req'] }))
-                return;
-            const x = NX.fd(f);
-            const err = (n, t) => { NX.$('[name=' + n + ']', f).closest('.field').querySelector('.err').textContent = t; };
-            if (await NX.hash(x.old) !== NX.db.auth.hash)
-                return err('old', 'Das bisherige Passwort ist falsch.');
-            if (x.n1 !== x.n2)
-                return err('n2', 'Die Passwörter stimmen nicht überein.');
-            NX.db.auth.hash = await NX.hash(x.n1);
-            NX.log('Admin-Passwort geändert');
-            f.reset();
-            NX.toast('Passwort geändert.');
+            e.preventDefault(); err.textContent = '';
+            const x = NX.fd(f), user = x.user.trim(), name = x.name.trim(), pwNew = !!(x.n1 || x.n2 || x.old);
+            if (user.length < 3) return void (err.textContent = 'Benutzername: mindestens 3 Zeichen.');
+            let hash = null, oldHash = null;
+            if (pwNew) {
+                if (!x.old) return void (err.textContent = 'Bitte das bisherige Passwort eingeben.');
+                if (!strongPw(x.n1)) return void (err.textContent = 'Neues Passwort: mindestens 12 Zeichen mit Buchstaben und Zahlen.');
+                if (x.n1 !== x.n2) return void (err.textContent = 'Die neuen Passwörter stimmen nicht überein.');
+                oldHash = await NX.hash(x.old); hash = await NX.hash(x.n1);
+                if (!srv && oldHash !== A.hash) return void (err.textContent = 'Das bisherige Passwort ist falsch.');
+            }
+            if (srv) {
+                const r = await sapi('PUT', '/api/me', { name, user, hash, oldHash }); if (!r.ok) return void (err.textContent = r.j.error || 'Nicht möglich.');
+            }
+            A.name = name; A.user = user; if (hash) A.hash = hash;
+            try { NX.sess.set('admin', user); } catch (e) { }
+            if (!srv) NX.save();
+            NX.log('Profil geändert: ' + user); NX.refreshMe(); NX.toast('Profil gespeichert.'); m.close();
         });
-    }
+    };
     NX.shell({
         role: 'admin', title: 'Administration',
         allow: id => {
             const A = NX.db.auth; if (!A || A.role !== 'employee') return true;
-            const area = id === 'dashboard' || id === 'passwort' ? '' : id === 'backup' ? '-' : id === 'user' ? 'kunden' : id === 'webseiteneinstellungen' || id === 'einstellungen' ? 'einstellungen' : /^verrechnung/.test(id) ? 'verrechnung' : /^finanzen/.test(id) ? 'finanzen' : /^zeit/.test(id) ? 'zeiterfassung' : id;
+            const area = id === 'dashboard' ? '' : id === 'backup' ? '-' : id === 'user' ? 'kunden' : id === 'webseiteneinstellungen' || id === 'einstellungen' ? 'einstellungen' : /^verrechnung/.test(id) ? 'verrechnung' : /^finanzen/.test(id) ? 'finanzen' : /^zeit/.test(id) ? 'zeiterfassung' : id;
             return !area || (area !== '-' && (A.perms || []).includes(area));
         },
         nav: [
@@ -508,13 +528,13 @@
             { id: 'verrechnung-menu', label: 'Verrechnung', children: [['verrechnung-angebote', 'Angebote'], ['verrechnung-rechnungen', 'Rechnungen'], ['verrechnung-mahnungen', 'Erinnerungen & Mahnungen'], ['verrechnung-vertraege', 'Monatliche Verträge']] },
             { id: 'buchhaltung-menu', label: 'Buchhaltung', children: [['buchhaltung', 'Buchhaltungs-Dashboard']] },
             { id: 'finanzen-menu', label: 'Finanzen', children: [['finanzen-uebersicht', 'Finanzübersicht'], ['finanzen-zeiten', 'Zeiten abrechnen']] },
-            { id: 'zeiterfassung-menu', label: 'Zeiterfassung', children: [['zeit-eintraege', 'Zeiterfassung'], ['zeit-uebersicht', 'Übersicht']] }, ['user', 'Userverwaltung'], ['webseiteneinstellungen', 'Website-Einstellungen'], ['dateien', 'Dateien'], ['einstellungen', 'Einstellungen'], ['passwort', 'Passwort ändern'], ['backup', 'Backup']
+            { id: 'zeiterfassung-menu', label: 'Zeiterfassung', children: [['zeit-eintraege', 'Zeiterfassung'], ['zeit-uebersicht', 'Übersicht']] }, ['user', 'Userverwaltung'], ['webseiteneinstellungen', 'Website-Einstellungen'], ['einstellungen', 'Einstellungen'], ['backup', 'Backup']
         ],
         views: {
             buchhaltung: NX.bookkeeping.render, dashboard, anfragen, projekte, user, angebote: NX.bill.offersView, rechnungen: NX.bill.invoicesView, mahnungen: NX.bill.remindersView,
             'verrechnung-angebote': NX.financeViews.angebote, 'verrechnung-rechnungen': NX.financeViews.rechnungen, 'verrechnung-mahnungen': NX.financeViews.mahnungen, 'verrechnung-vertraege': NX.financeViews.vertraege,
             'finanzen-uebersicht': NX.financeViews.uebersicht, 'finanzen-zeiten': NX.financeViews.zeiten,
-            'zeit-eintraege': NX.timeViews.eintraege, 'zeit-uebersicht': NX.timeViews.uebersicht, webseiteneinstellungen, einstellungen, passwort, backup, dateien: el => { el.innerHTML = '<h1>Dateien</h1>'; },
+            'zeit-eintraege': NX.timeViews.eintraege, 'zeit-uebersicht': NX.timeViews.uebersicht, webseiteneinstellungen, einstellungen, backup,
             kalender: el => { el.innerHTML = '<h1>Kalender</h1>'; }
         }
     });

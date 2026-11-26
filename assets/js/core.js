@@ -458,12 +458,15 @@
         return m;
     };
     /* ---------- App-Rahmen mit eigener Anmeldung (Admin / Finance / Time) ---------- */
+    /* Initialen des angemeldeten Admin-/Mitarbeiter-Kontos (aus Name, sonst Benutzername) */
+    NX.initials = () => { const A = (NX.db && NX.db.auth) || {}, n = String(A.name || '').trim().split(/\s+/).filter(Boolean); const t = n.length > 1 ? n[0][0] + n[n.length - 1][0] : (n[0] || String(A.user || '?')).slice(0, 2); return t.toUpperCase().replace(/[<>&]/g, ''); };
+    NX.refreshMe = () => { const m = document.getElementById('me'); if (m) m.textContent = NX.initials(); };
     NX.shell = o => {
         const root = NX.$('#root'), hdr = NX.$('#hdr'), b = document.body.dataset.base || '../';
         let adminBridge = false;
         /* Nur freigegebene Bereiche: o.allow(id) entscheidet (Mitarbeiter mit eingeschränkten Rechten); leere Gruppen entfallen */
         const navList = () => !o.allow ? o.nav : o.nav.map(n => Array.isArray(n) ? (o.allow(n[0]) ? n : null) : (n.children.filter(c => o.allow(c[0])).length ? Object.assign({}, n, { children: n.children.filter(c => o.allow(c[0])) }) : null)).filter(Boolean);
-        const head = out => { hdr.innerHTML = `<div class="wrap hb"><a class="logo logo-image logo-symbol admin-symbol" href="${b}admin/index.html#dashboard" aria-label="NEXORA by AL – zum Dashboard" title="Zum Dashboard"><img src="${b}assets/images/nexora-symbol.png" alt="NEXORA"></a><span class="htitle">${o.title}</span>${out ? `<button type="button" class="btn ghost sm" id="lo">${adminBridge ? 'Zur Administration' : 'Abmelden'}</button>` : '<span></span>'}</div>`; const l = NX.$('#lo'); if (l)
+        const head = out => { hdr.innerHTML = `<div class="wrap hb"><a class="logo logo-image logo-symbol admin-symbol" href="${b}admin/index.html#dashboard" aria-label="NEXORA by AL – zum Dashboard" title="Zum Dashboard"><img src="${b}assets/images/nexora-symbol.png" alt="NEXORA"></a>${o.role === 'admin' ? '' : `<span class="htitle">${o.title}</span>`}${out && o.role === 'admin' && !adminBridge ? `<button type="button" class="nx-me" id="me" aria-label="Mein Profil" title="Mein Profil">${NX.initials()}</button>` : ''}${out ? `<button type="button" class="btn ghost sm" id="lo">${adminBridge ? 'Zur Administration' : 'Abmelden'}</button>` : '<span></span>'}</div>`; const me = NX.$('#me'); if (me) me.onclick = () => NX.profile && NX.profile(); const l = NX.$('#lo'); if (l)
             l.onclick = () => { if (adminBridge) { location.href = '../admin/index.html'; return; } NX.sess.clear(o.role); location.hash = ''; login(); }; };
         const foot = () => { NX.$('#ftr').innerHTML = `<div class="wrap"><div><a href="${b}index.html">Website</a><a href="${b}impressum.html">Impressum</a><a href="${b}datenschutz.html">Datenschutz</a></div><div></div></div>`; };
         function setup() {

@@ -46,16 +46,11 @@ const AREAS = {
   finanzen: { r: ['offers', 'invoices', 'reminders', 'subscriptions', 'projects', 'projectArchive', 'time'], w: [] },
   zeiterfassung: { r: ['time', 'projects', 'projectArchive'], w: ['time'] },
   kunden: { r: ['customers', 'chat'], w: ['customers', 'chat'] },
-  einstellungen: { r: ['settings'], w: ['settings'] },
-  dateien: { r: [], w: [] }
+  einstellungen: { r: ['settings'], w: ['settings'] }
 };
 const cleanPerms = p => (isArr(p) ? p : []).filter((x, i, a) => AREAS[x] && a.indexOf(x) === i);
 const isStaff = s => s && (s.role === 'admin' || s.role === 'employee');
 const canArea = (s, a) => s && (s.role === 'admin' || (s.role === 'employee' && (s.perms || []).includes(a)));
-async function staffPwChange(s, hash) {
-  const list = await getAdmins(), a = list.find(x => adminName(x) === String(s.uid).toLowerCase()); if (!a) return;
-  a.pw = secure(hash); await kvPut(ADMINS, list); for (const r of ['admin', 'employee']) await pool.query('update sessions set ph=$1 where role=$2 and uid=$3', [hash, r, s.uid]);
-}
 async function getAdmins() { const r = await kvGet(ADMINS); return r && isArr(r.value) ? r.value : []; }
 const adminName = a => String(a.user).toLowerCase();
 
@@ -86,7 +81,7 @@ async function session(req) {
     const a = (await getAdmins()).find(x => adminName(x) === String(s.uid).toLowerCase());
     if (!a || a.status === 'gesperrt') return { role: 'none' };
     const role = a.role === 'employee' ? 'employee' : 'admin';
-    return { role, uid: a.user, token: t, ph: s.ph || '', perms: role === 'employee' ? cleanPerms(a.perms) : null };
+    return { role, uid: a.user, name: a.name || '', token: t, ph: s.ph || '', perms: role === 'employee' ? cleanPerms(a.perms) : null };
   }
   return { role: s.role, uid: s.uid, token: t, ph: s.ph || '' };
 }
@@ -115,14 +110,14 @@ function customerView(db, id) {
 function employeeView(db, s) {
   const v = emptyShape(db), ro = new Set(['settings']), perms = s.perms || [];
   perms.forEach(p => { (AREAS[p] ? AREAS[p].r : []).forEach(k => ro.add(k)); });
-  if (perms.some(p => p !== 'dateien' && p !== 'einstellungen')) ro.add('customers');
+  if (perms.some(p => p !== 'einstellungen')) ro.add('customers');
   ro.forEach(k => { if (db[k] !== undefined) v[k] = clone(db[k]); });
   v.customers = (v.customers || []).map(c => { const x = Object.assign({}, c); delete x.pwHash; return x; });
-  v.auth = { user: s.uid, hash: s.ph || '', role: 'employee', perms };
+  v.auth = { user: s.uid, name: s.name || '', hash: s.ph || '', role: 'employee', perms };
   return v;
 }
 async function viewFor(s, db) {
-  if (s.role === 'admin') { const v = clone(db); v.auth = { user: s.uid, hash: s.ph || '', role: 'admin' }; return v; }
+  if (s.role === 'admin') { const v = clone(db); v.auth = { user: s.uid, name: s.name || '', hash: s.ph || '', role: 'admin' }; return v; }
   if (s.role === 'employee') return employeeView(db, s);
   if (s.role === 'customer') { const v = customerView(db, s.uid); if (v.customers[0]) v.customers[0].pwHash = s.ph || ''; return v; }
   return publicView(db);
@@ -153,7 +148,7 @@ function mergePublic(S, C, ip) {
   (C.customers || []).forEach(c => {
     if (!c || !c.id || !c.email) return;
     const ex = (out.customers || []).find(x => x.id === c.id);
-    if (!ex) { if ((out.customers || []).some(x => String(x.email).toLowerCase() === String(c.email).toLowerCase())) return; if (limited('reg:' + ip, 5, 36e5)) return; hit('reg:' + ip); out.customers.push(Object.assign({}, c, { role: c.role === 'Mitarbeiter' ? 'Kunde' : c.role }, c.pwHash ? { pwHash: secure(c.pwHash) } : {})); }
+    if (!ex) { if ((out.customers || []).some(x => String(x.email).toLowerCase() === String(c.email).toLowerCase())) return; if (limited('reg:' + ip, 5, 36e5)) return; hit('reg:' + ip); out.customers.push(Object.assign({}, c, { role: 'Kunde' }, c.pwHash ? { pwHash: secure(c.pwHash) } : {})); }
     else if (ex.resetPending && c.pwHash && !isSecured(c.pwHash) && !c.resetPending) { ex.pwHash = secure(c.pwHash); ex.resetPending = false; }
   });
   const known = new Set((out.inquiries || []).map(i => i.id));
@@ -225,8 +220,10 @@ async function housekeeping() { if (!(await acquireLock('housekeeping', 5 * 60 *
 const FILE_MAX = 10 * 1024 * 1024, FILE_TOTAL = 400 * 1024 * 1024;
 const FILE_MIME = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', txt: 'text/plain; charset=utf-8', csv: 'text/csv; charset=utf-8', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', zip: 'application/zip', odt: 'application/vnd.oasis.opendocument.text', ods: 'application/vnd.oasis.opendocument.spreadsheet' };
 const fileExt = n => (String(n).split('.').pop() || '').toLowerCase();
+const FILE_AREA = { inquiry: 'anfragen', project: 'projekte', invoice: 'verrechnung', offer: 'verrechnung', customer: 'kunden' };
+const staffFileOk = (s, owner) => { const m = String(owner).match(/^(\w+):/); return !!(m && FILE_AREA[m[1]] && canArea(s, FILE_AREA[m[1]])); };   /* Dateien gehören zu ihrem Bereich: Anfragen, Projekte, ... */
 function ownerOk(db, owner, cid) { /* darf der Kunde cid Dateien dieser Zuordnung sehen? */
-  const m = String(owner).match(/^(customer|project|invoice|offer):(.+)$/); if (!m) return false;
+  const m = String(owner).match(/^(customer|project|invoice|offer):(.+)$/); if (!m) return false;   /* Anfrage-Dateien (inquiry:) sind intern und für Kunden nie sichtbar */
   if (m[1] === 'customer') return m[2] === cid;
   const list = m[1] === 'project' ? [].concat(db.projects || [], db.projectArchive || []) : m[1] === 'invoice' ? (db.invoices || []).filter(i => !i.draft) : (db.offers || []).filter(o => o.status !== 'Entwurf');
   const it = list.find(x => x.id === m[2]); return !!(it && it.customerId === cid);
@@ -253,13 +250,11 @@ async function api(req, res, url) {
     const S = row.value; let out;
     if (s.role === 'admin') {
       if (!isArr(C.customers) || !isArr(C.invoices)) return send(res, 400, { error: 'Ungültige Daten' });
-      if (isObj(C.auth) && C.auth.hash && C.auth.hash !== s.ph) await staffPwChange(s, C.auth.hash);   /* Passwort geändert */
       out = Number(b.base) === Number(row.rev) ? C : mergeAdmin(S, C, Number(b.base) || 0); delete out.auth;
       (out.customers || []).forEach(c => { if (c.pwHash && !isSecured(c.pwHash)) c.pwHash = secure(c.pwHash); });
     }
     else if (s.role === 'employee') {
       if (!isArr(C.customers) || !isArr(C.invoices)) return send(res, 400, { error: 'Ungültige Daten' });
-      if (isObj(C.auth) && C.auth.hash && C.auth.hash !== s.ph) await staffPwChange(s, C.auth.hash);
       const wk = new Set(); (s.perms || []).forEach(p => (AREAS[p] ? AREAS[p].w : []).forEach(k => wk.add(k)));
       const cand = clone(S); wk.forEach(k => { if (C[k] !== undefined) cand[k] = C[k]; });
       if (canArea(s, 'buchhaltung') && !wk.has('invoices')) (cand.invoices || []).forEach(i => { const ci = C.invoices.find(x => x.id === i.id); if (ci && isArr(ci.payments)) i.payments = ci.payments; });
@@ -284,7 +279,7 @@ async function api(req, res, url) {
     const b = await readBody(req, 1e5), row = await kvGet(DBKEY); if (!row) return send(res, 409, { empty: true });
     if ((MODE === 'public' && b.role === 'admin') || (MODE === 'admin' && b.role !== 'admin')) return send(res, 403, { error: 'Hier nicht möglich.' });
     const db = row.value; let sess = null;
-    if (b.role === 'admin') { const a = (await getAdmins()).find(x => adminName(x) === String(b.user || '').toLowerCase()); if (a && a.status !== 'gesperrt' && verifyPw(a.pw, b.hash)) sess = { role: a.role === 'employee' ? 'employee' : 'admin', uid: a.user, perms: a.role === 'employee' ? cleanPerms(a.perms) : null }; }
+    if (b.role === 'admin') { const a = (await getAdmins()).find(x => adminName(x) === String(b.user || '').toLowerCase()); if (a && a.status !== 'gesperrt' && verifyPw(a.pw, b.hash)) sess = { role: a.role === 'employee' ? 'employee' : 'admin', uid: a.user, name: a.name || '', perms: a.role === 'employee' ? cleanPerms(a.perms) : null }; }
     else if (b.role === 'customer') { const c = (db.customers || []).find(x => String(x.email).toLowerCase() === String(b.user || '').toLowerCase()); if (c && c.pwHash && verifyPw(c.pwHash, b.hash) && c.role !== 'Mitarbeiter') { sess = { role: 'customer', uid: c.id }; if (!isSecured(c.pwHash)) { c.pwHash = secure(b.hash); await kvPut(DBKEY, db); } } }
     if (!sess) { hit('login:' + ip); return send(res, 401, { ok: false }); }
     return startSession(req, res, sess, b.hash, db);
@@ -297,6 +292,21 @@ async function api(req, res, url) {
     await kvPut(ADMINS, [{ user, pw: secure(b.hash), created: Date.now() }]);
     let row = await kvGet(DBKEY); if (!row) { await kvPut(DBKEY, stripCustomerData(isObj(b.db) ? b.db : { v: 1, settings: {}, customers: [], invoices: [] })); row = await kvGet(DBKEY); }
     return startSession(req, res, { role: 'admin', uid: user }, b.hash, row.value);
+  }
+  if (p === '/api/me') {   /* eigenes Konto (Administrator oder Mitarbeiter): Name, Benutzername, Passwort */
+    if (!isStaff(s)) return send(res, 403, { error: 'Nicht erlaubt' });
+    const list = await getAdmins(), a = list.find(x => adminName(x) === String(s.uid).toLowerCase()); if (!a) return send(res, 404, { error: 'Unbekannt' });
+    if (req.method === 'GET') return send(res, 200, { user: a.user, name: a.name || '', role: s.role });
+    if (req.method === 'PUT') {
+      const b = await readBody(req, 1e5), old = a.user;
+      if (b.hash) { if (!b.oldHash || !verifyPw(a.pw, b.oldHash)) return send(res, 400, { error: 'Das bisherige Passwort ist falsch.' }); a.pw = secure(b.hash); }
+      if (b.name !== undefined) a.name = String(b.name).trim().slice(0, 80);
+      if (b.user !== undefined && String(b.user).trim() !== a.user) { const u = String(b.user).trim(); if (u.length < 3) return send(res, 400, { error: 'Benutzername: mindestens 3 Zeichen.' }); if (list.some(x => x !== a && adminName(x) === u.toLowerCase())) return send(res, 409, { error: 'Diesen Benutzernamen gibt es schon.' }); a.user = u; }
+      await kvPut(ADMINS, list);
+      for (const r of ['admin', 'employee']) await pool.query('delete from sessions where role=$1 and lower(uid)=$2 and token<>$3', [r, old.toLowerCase(), s.token || '']);   /* andere Geräte müssen sich neu anmelden */
+      await pool.query('update sessions set uid=$1, ph=$2 where token=$3', [a.user, b.hash || s.ph || '', s.token || '']);
+      return send(res, 200, { ok: true, user: a.user, name: a.name || '' });
+    }
   }
   let am = p.match(/^\/api\/admins(?:\/([^/]+))?$/);
   if (am) {
@@ -313,10 +323,13 @@ async function api(req, res, url) {
       if (self && (wantRole !== 'admin' || b.status === 'gesperrt')) return send(res, 400, { error: 'Das eigene Konto kann nicht eingeschränkt oder gesperrt werden.' });
       if (isLastAdmin(u) && (wantRole !== 'admin' || b.status === 'gesperrt')) return send(res, 400, { error: 'Der letzte Administrator kann nicht eingeschränkt oder gesperrt werden.' });
       if (b.name !== undefined) a.name = String(b.name).trim().slice(0, 80);
+      let renamed = false;
+      if (b.newUser !== undefined && String(b.newUser).trim() !== a.user) { const nu = String(b.newUser).trim(); if (nu.length < 3) return send(res, 400, { error: 'Benutzername: mindestens 3 Zeichen.' }); if (list.some(x => x !== a && adminName(x) === nu.toLowerCase())) return send(res, 409, { error: 'Diesen Benutzernamen gibt es schon.' }); a.user = nu; renamed = true; }
       a.role = wantRole; a.perms = wantRole === 'employee' ? cleanPerms(b.perms !== undefined ? b.perms : a.perms) : []; if (b.status) a.status = b.status === 'gesperrt' ? 'gesperrt' : 'aktiv';
       if (b.hash) a.pw = secure(b.hash);
       await kvPut(ADMINS, list);
-      if (b.hash || a.status === 'gesperrt') for (const r of ['admin', 'employee']) await pool.query('delete from sessions where role=$1 and lower(uid)=$2 and token<>$3', [r, u, s.token || '']);   /* Rechte und Rolle stammen bei jeder Anfrage aus dem Konto */
+      if (b.hash || a.status === 'gesperrt' || renamed) for (const r of ['admin', 'employee']) await pool.query('delete from sessions where role=$1 and lower(uid)=$2 and token<>$3', [r, u, s.token || '']);
+      if (renamed && self) await pool.query('update sessions set uid=$1 where token=$2', [a.user, s.token || '']);   /* Rechte und Rolle stammen bei jeder Anfrage aus dem Konto */
       return send(res, 200, { ok: true });
     }
   }
@@ -330,16 +343,17 @@ async function api(req, res, url) {
   }
   if (req.method === 'POST' && p === '/api/automation/run') { if (s.role !== 'admin') return send(res, 403, { error: 'Nicht erlaubt' }); await runAutomation(); return send(res, 200, { ok: true }); }
   if (p === '/api/files' || /^\/api\/files\/[A-Za-z0-9_-]+$/.test(p)) {
-    if (s.role !== 'admin' && s.role !== 'customer' && !canArea(s, 'dateien')) return send(res, 403, { error: 'Bitte anmelden.' });
+    if (s.role !== 'admin' && s.role !== 'customer' && s.role !== 'employee') return send(res, 403, { error: 'Bitte anmelden.' });
     const row = await kvGet(DBKEY), db = row ? row.value : {};
     if (req.method === 'GET' && p === '/api/files') {
       const r = await pool.query('select id, owner, name, mime, size, created_at, uploaded_by from files order by created_at desc');
-      const list = r.rows.filter(f => isStaff(s) || ownerOk(db, f.owner, s.uid));
+      const list = r.rows.filter(f => s.role === 'admin' || (s.role === 'employee' ? staffFileOk(s, f.owner) : ownerOk(db, f.owner, s.uid)));
       return send(res, 200, { files: list.map(f => ({ id: f.id, owner: f.owner, name: f.name, size: Number(f.size), created_at: f.created_at, by: f.uploaded_by })) });
     }
     if (req.method === 'POST' && p === '/api/files') {
       const owner = String(url.searchParams.get('owner') || ''), name = String(url.searchParams.get('name') || '').replace(/[\\/\r\n"]/g, '_').slice(0, 160);
-      if (!name || !/^(customer|project|invoice|offer):.+$/.test(owner)) return send(res, 400, { error: 'Name oder Zuordnung fehlt.' });
+      if (!name || !/^(inquiry|customer|project|invoice|offer):.+$/.test(owner)) return send(res, 400, { error: 'Name oder Zuordnung fehlt.' });
+      if (s.role === 'employee' && !staffFileOk(s, owner)) return send(res, 403, { error: 'Nicht erlaubt' });
       if (s.role === 'customer' && !ownerOk(db, owner, s.uid)) return send(res, 403, { error: 'Nicht erlaubt' });
       if (!FILE_MIME[fileExt(name)]) return send(res, 400, { error: 'Dieser Dateityp ist nicht erlaubt.' });
       const buf = await readRaw(req, FILE_MAX); if (!buf.length) return send(res, 400, { error: 'Datei ist leer.' });
@@ -351,10 +365,10 @@ async function api(req, res, url) {
     const fid = p.split('/')[3];
     if (req.method === 'GET' && fid) {
       const r = await pool.query('select id, owner, name, mime, data from files where id=$1', [fid]), f = r.rows[0];
-      if (!f || (!isStaff(s) && !ownerOk(db, f.owner, s.uid))) return send(res, 404, { error: 'Nicht gefunden' });
+      if (!f || (s.role === 'employee' ? !staffFileOk(s, f.owner) : s.role !== 'admin' && !ownerOk(db, f.owner, s.uid))) return send(res, 404, { error: 'Nicht gefunden' });
       res.writeHead(200, { 'Content-Type': f.mime, 'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent(f.name), 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Length': f.data.length }); return res.end(f.data);
     }
-    if (req.method === 'DELETE' && fid) { if (s.role !== 'admin') return send(res, 403, { error: 'Nicht erlaubt' }); await pool.query('delete from files where id=$1', [fid]); return send(res, 200, { ok: true }); }
+    if (req.method === 'DELETE' && fid) { if (s.role !== 'admin') { const fr = s.role === 'employee' ? await pool.query('select owner from files where id=$1', [fid]) : null; if (!fr || !fr.rows[0] || !staffFileOk(s, fr.rows[0].owner)) return send(res, 403, { error: 'Nicht erlaubt' }); } await pool.query('delete from files where id=$1', [fid]); return send(res, 200, { ok: true }); }
   }
   if (req.method === 'POST' && p === '/api/logout') { if (s.token) await pool.query('delete from sessions where token=$1', [s.token]); return send(res, 200, { ok: true }, { 'Set-Cookie': cookieStr(req, '', 0) }); }
   return send(res, 404, { error: 'Unbekannt' });
