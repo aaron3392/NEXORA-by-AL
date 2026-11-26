@@ -157,7 +157,7 @@
             D.inquiries.push(i); NX.save(); NX.log('Neue Projektanfrage: ' + i.subject);
             const detailText = Object.entries(details).map(([k,v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
             const r = await NX.formsubmit({ _subject: '[Projektanfrage] ' + i.subject, Name: i.first + ' ' + i.last, Firma: i.company, Adresse: i.street + ' ' + i.no + ', ' + i.zip + ' ' + i.city + ', ' + i.country, UID: i.vatId, Kontaktweg: i.contactPref, Wunschtermin: i.wishDate, email: i.email, Telefon: i.phone, Leistung: i.service, Projektdetails: detailText, Beschreibung: i.message, Zahlungsmodell: i.paymentModel, Monatspaket: i.monthlyPackage, Monatspreis: i.monthlyPrice, Support: i.packageSupport, Hosting: i.hostingModel, Hostingdetails: i.hostingNotes, Budget: i.budget, Zeitrahmen: i.timeframe, Zusatz: x.extra || '' });
-            NX.mailLog(NX.db.settings.formsubmit || '(nicht konfiguriert)', i.subject, 'Projektanfrage', r.ok ? 'an FormSubmit übergeben' : 'nur lokal gespeichert');
+            NX.mailLog(NX.db.settings.email || NX.db.settings.formsubmit || '(nicht konfiguriert)', i.subject, 'Projektanfrage', r.ok ? 'an FormSubmit übergeben' : 'nur lokal gespeichert');
             box.innerHTML = '<b>Vielen Dank! Ihre Projektanfrage wurde gespeichert.</b> ' + (r.ok ? '' : esc(r.msg)); f.reset(); monthly.hidden = true; packageInfo.textContent = ''; renderDetails();
             if (c) ['first','last','email','phone','company','street','no','zip','city','country','vatId'].forEach(k => { if (f.elements[k] && (c[k] || !f.elements[k].defaultValue)) f.elements[k].value = c[k] || ''; });
         });
@@ -179,7 +179,7 @@
             NX.save();
             NX.log('Neue Kontaktnachricht: ' + i.subject);
             const r = await NX.formsubmit({ _subject: '[Kontakt] ' + i.subject, Name: i.first + ' ' + i.last, email: i.email, Telefon: i.phone, Nachricht: i.message });
-            NX.mailLog(NX.db.settings.formsubmit || '(nicht konfiguriert)', i.subject, 'Kontaktnachricht', r.ok ? 'an FormSubmit übergeben' : 'nur lokal gespeichert');
+            NX.mailLog(NX.db.settings.email || NX.db.settings.formsubmit || '(nicht konfiguriert)', i.subject, 'Kontaktnachricht', r.ok ? 'an FormSubmit übergeben' : 'nur lokal gespeichert');
             box.innerHTML = '<b>Vielen Dank! Ihre Nachricht wurde gespeichert.</b> ' + esc(r.msg);
             f.reset();
             prefill();

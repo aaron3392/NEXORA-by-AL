@@ -430,10 +430,10 @@
     NX.viewDoc = (type, d) => NX.modal((type === 'offer' ? (d.type || 'Angebot') : type === 'invoice' ? (d.kind === 'Vorauszahlungsrechnung' ? 'Vorauszahlung' : d.kind) : d.type) + ' ' + d.number, NX.docHTML(type, d), { wide: true });
     /* ---------- E-Mail (FormSubmit) ---------- */
     NX.formsubmit = async (p) => {
-        const e = (p && p._to) || NX.db.settings.formsubmit;
+        const e = (p && p._to) || NX.db.settings.email || NX.db.settings.formsubmit;
         const payload = Object.assign({}, p || {}); delete payload._to;
         if (!e)
-            return { ok: false, msg: 'FormSubmit ist nicht konfiguriert (Admin → Einstellungen). Die Nachricht wurde nicht versendet.' };
+            return { ok: false, msg: 'Es ist keine Firmen-E-Mail hinterlegt (Admin → Einstellungen → Unternehmensdaten). Die Nachricht wurde nicht versendet.' };
         try {
             const r = await fetch('https://formsubmit.co/ajax/' + encodeURIComponent(e), { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(Object.assign({ _captcha: 'false', _template: 'table' }, payload)) });
             const j = await r.json().catch(() => ({}));
@@ -447,9 +447,9 @@
     };
     NX.mailLog = (to, subject, kind, status) => { NX.db.mails.unshift({ t: Date.now(), to, subject, kind, status }); NX.db.mails.length = Math.min(NX.db.mails.length, 100); NX.save(); };
     NX.mailPreview = o => {
-        const cfg = !!NX.db.settings.formsubmit;
+        const cfg = !!(NX.db.settings.email || NX.db.settings.formsubmit);
         const m = NX.modal('E-Mail-Vorschau', `<form novalidate><div class="field"><label for="mt">Empfänger</label><input id="mt" name="to" type="email" value="${NX.esc(o.to || '')}"></div><div class="field"><label for="ms">Betreff</label><input id="ms" name="subject" value="${NX.esc(o.subject)}"></div><div class="field"><label for="mm">Nachricht</label><textarea id="mm" name="message" rows="9">${NX.esc(o.message)}</textarea></div>
- <p class="note">${cfg ? 'FormSubmit ist konfiguriert. Der Versand erfolgt über FormSubmit direkt an die oben eingetragene Empfängeradresse. FormSubmit muss diese Empfängeradresse ggf. zuerst freischalten.' : 'FormSubmit ist <b>nicht konfiguriert</b> (Admin → Einstellungen). Es wird nichts versendet; Sie können die Nachricht lokal vormerken oder im eigenen E-Mail-Programm öffnen.'} Passwörter werden nie in E-Mails aufgenommen.</p><p id="ms-st" class="err" role="status"></p>
+ <p class="note">${cfg ? 'FormSubmit ist konfiguriert. Der Versand erfolgt über FormSubmit direkt an die oben eingetragene Empfängeradresse. FormSubmit muss diese Empfängeradresse ggf. zuerst freischalten.' : 'Es ist <b>keine Firmen-E-Mail</b> hinterlegt (Admin → Einstellungen → Unternehmensdaten). Es wird nichts versendet; Sie können die Nachricht lokal vormerken oder im eigenen E-Mail-Programm öffnen.'} Passwörter werden nie in E-Mails aufgenommen.</p><p id="ms-st" class="err" role="status"></p>
  <div class="acts"><button type="button" class="btn" data-s${cfg ? '' : ' disabled'}>Über FormSubmit senden</button><button type="button" class="btn ghost" data-l>Lokal vormerken</button></div></form>`, { wide: true });
         const f = NX.$('form', m.body), st = NX.$('#ms-st', m.body), v = () => NX.fd(f);
         NX.$('[data-l]', m.body).onclick = () => { const x = v(); NX.mailLog(x.to, x.subject, o.kind || 'E-Mail', 'lokal vorgemerkt'); st.textContent = 'Lokal vorgemerkt (nicht versendet).'; NX.toast('E-Mail lokal vorgemerkt.'); };
