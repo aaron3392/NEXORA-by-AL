@@ -2959,3 +2959,31 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 .nx-dec-box, .nx-pay-box { margin: 12px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(165,86,255,.45); background: rgba(125,36,255,.08); }
 .nx-dec-box.ok { border-color: rgba(98,214,160,.55); } .nx-dec-box.no { border-color: rgba(255,143,143,.55); }
 .nx-ax-todo li.ok i { background: #62d6a0; }
+
+/* Aktionsspalten dürfen umbrechen, damit Buttons nicht abgeschnitten werden */
+td:has(> .btn){white-space:normal;min-width:190px}
+td:has(> .b + .b){white-space:normal;min-width:150px}
+
+/* Hintergrund bei offenem Popup nicht scrollbar */
+html:has(.ov), body:has(.ov) { overflow: hidden !important; }
+body:has(.ov) #root { overflow: hidden !important; }
+.ov { overscroll-behavior: contain; }
+.md { overscroll-behavior: contain; }
+
+/* Scrollleisten im Seitenstil */
+html { color-scheme: dark; }
+* { scrollbar-width: thin; scrollbar-color: rgba(139,34,255,.55) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(139,34,255,.5); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(176,110,255,.8); background-clip: padding-box; border: 2px solid transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Seitenmenü: scrollbar statt Seiten, keine Linien, + / − statt Pfeil */
+.admin-app .shell > .side { overflow-y: auto !important; overflow-x: hidden; }
+.admin-app .side .side-submenu { border-left: 0 !important; margin-left: 10px; padding-left: 0; }
+.admin-app .side .side-sub-link, .side .side-sub-link { border-left: 0 !important; border-radius: 10px; }
+.admin-app .side .side-sub-link.on { box-shadow: 0 6px 18px rgba(146,45,255,.4); }
+.side .side-chevron { font-size: 0; transition: none; transform: none !important; width: 1.2em; text-align: center; }
+.side .side-chevron::before { content: "+"; font-size: 1.25rem; font-weight: 600; line-height: 1; }
+.side-group.expanded .side-chevron::before { content: "\2212"; }
