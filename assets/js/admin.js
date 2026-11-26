@@ -391,7 +391,7 @@
         const config = {
             packages: { title: 'Paket', fields: [{ key: 'name', label: 'Paketname', placeholder: 'z. B. Business-Website' }, { key: 'price', label: 'Preis', placeholder: 'z. B. ab 990 €' }, { key: 'desc', label: 'Beschreibung / enthaltene Leistungen', placeholder: 'Was ist im Paket enthalten?', wide: true }, { key: 'support', label: 'Supportumfang', placeholder: 'z. B. E-Mail-Support, Reaktionszeit 2 Werktage', wide: true }] },
             hosting: { title: 'Hosting-Angebot', fields: [{ key: 'name', label: 'Name', placeholder: 'z. B. Hosting Plus' }, { key: 'price', label: 'Preis', placeholder: 'z. B. 19 € / Monat' }, { key: 'desc', label: 'Beschreibung', placeholder: 'Leistungsumfang und Betreuung', wide: true }] },
-            showcase: { title: 'Projektbeispiel', fields: [{ key: 'name', label: 'Projektname', placeholder: 'z. B. Demo: Unternehmenswebsite' }, { key: 'cat', label: 'Kategorie', placeholder: 'z. B. Webdesign' }, { key: 'status', label: 'Status', placeholder: 'z. B. Beispielprojekt' }, { key: 'desc', label: 'Beschreibung', placeholder: 'Kurze Projektbeschreibung', wide: true }] }
+            showcase: { title: 'Projektbeispiel', fields: [{ key: 'name', label: 'Projektname', placeholder: 'z. B. Unternehmenswebsite' }, { key: 'cat', label: 'Kategorie', placeholder: 'z. B. Webdesign' }, { key: 'status', label: 'Status', placeholder: 'z. B. Beispielprojekt' }, { key: 'desc', label: 'Beschreibung', placeholder: 'Kurze Projektbeschreibung', wide: true }] }
         };
         const collections = {
             packages: (Array.isArray(s.packages) ? s.packages : []).map(x => ({ name: x.name || '', price: x.price || '', desc: x.desc || '', support: x.support || '' })),
