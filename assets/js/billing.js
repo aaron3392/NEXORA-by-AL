@@ -57,23 +57,57 @@
     };
     /* Senden: gibt das Dokument im Kundenportal frei und verschickt die E-Mail an den Kunden */
     B.sendDoc = async (type, d, done) => {
-        const list = type === 'offer' ? NX.db.offers : type === 'invoice' ? NX.db.invoices : NX.db.reminders, doc = list.find(x => x.id === d.id) || d;
-        const c = NX.cust(doc.customerId) || {}, s = NX.db.settings;
-        if (!c.id) { NX.toast('Bitte zuerst einen Kunden wählen.'); return false; }
-        if (type === 'offer' && doc.status === 'Entwurf') doc.status = 'Versendet';
-        if (type === 'invoice') doc.draft = false;
-        doc.sentAt = Date.now(); NX.save();
-        const kind = type === 'offer' ? (doc.type || 'Angebot') : type === 'invoice' ? doc.kind : doc.type;
-        const extra = type === 'reminder' ? `\nOffener Betrag: ${NX.eur(NX.open(NX.db.invoices.find(i => i.id === doc.invoiceId)))}${doc.fee ? ' zzgl. Gebühr ' + NX.eur(doc.fee) : ''}\nZahlbar bis: ${NX.date(doc.due)}` : type === 'invoice' ? `\nGesamtbetrag: ${NX.eur(NX.total(doc))}\n${doc.billingPeriod ? 'Abrechnungszeitraum: ' + doc.billingPeriod + '\n' : ''}Fällig am: ${NX.date(doc.due)}` : `\nGesamtbetrag: ${NX.eur(NX.total(doc))}\nGültig bis: ${NX.date(doc.valid)}`;
-        const url = ((NX.db.auth && NX.db.auth.publicUrl) || '').replace(/\/$/, ''), link = url ? `${url}/kundenportal.html` : '';
-        NX.log(kind + ' ' + doc.number + ' gesendet an ' + (c.email || 'Kundenportal'));
-        let msg = 'Im Kundenportal bereitgestellt.';
-        if (c.email) {
-            const r = await NX.formsubmit({ _to: c.email, _subject: `${kind} ${doc.number} – ${s.company}`, Empfänger: c.email, Nachricht: `Guten Tag ${c.first || ''} ${c.last || ''},\n\nwir haben Ihnen „${kind} ${doc.number}“ bereitgestellt.${extra}\n\nSie finden das vollständige Dokument in Ihrem Kundenportal${link ? ': ' + link : ' auf unserer Website'}.\n\nMit freundlichen Grüßen\n${s.company}` });
-            NX.mailLog(c.email, `${kind} ${doc.number}`, kind, r.ok ? 'an FormSubmit übergeben' : 'Fehler');
-            msg = r.ok ? 'Gesendet: E-Mail an den Kunden und im Kundenportal bereitgestellt.' : 'Im Kundenportal bereitgestellt, aber die E-Mail ging nicht raus: ' + r.msg;
-        } else msg = 'Im Kundenportal bereitgestellt. Beim Kunden ist keine E-Mail-Adresse hinterlegt.';
-        NX.toast(msg); done && done(); return true;
+        try {
+            const list = type === 'offer' ? NX.db.offers : type === 'invoice' ? NX.db.invoices : NX.db.reminders, doc = list.find(x => x.id === d.id) || d;
+            const c = NX.cust(doc.customerId) || {}, s = NX.db.settings;
+            if (!c.id) { NX.toast('Bitte zuerst einen Kunden wählen.'); return false; }
+            /* 1. Im Kundenportal freigeben (sofort, unabhängig vom E-Mail-Versand) */
+            if (type === 'offer' && doc.status === 'Entwurf') doc.status = 'Versendet';
+            if (type === 'invoice') doc.draft = false;
+            doc.sentAt = Date.now(); NX.save();
+            const kind = type === 'offer' ? (doc.type || 'Angebot') : type === 'invoice' ? doc.kind : doc.type;
+            NX.log(kind + ' ' + doc.number + ' gesendet an ' + (c.email || 'Kundenportal'));
+            NX.toast(kind + ' ' + doc.number + ' ist jetzt im Kundenportal sichtbar.');
+            done && done();
+            /* 2. E-Mail an den Kunden */
+            if (!c.email) { NX.toast('Beim Kunden ist keine E-Mail-Adresse hinterlegt – nur im Portal bereitgestellt.'); return true; }
+            let extra = '';
+            try {
+                const inv = type === 'reminder' ? NX.db.invoices.find(i => i.id === doc.invoiceId) : null;
+                extra = type === 'reminder' ? `\nOffener Betrag: ${inv ? NX.eur(NX.open(inv)) : '–'}${doc.fee ? ' zzgl. Gebühr ' + NX.eur(doc.fee) : ''}\nZahlbar bis: ${NX.date(doc.due)}` : type === 'invoice' ? `\nGesamtbetrag: ${NX.eur(NX.total(doc))}\n${doc.billingPeriod ? 'Abrechnungszeitraum: ' + doc.billingPeriod + '\n' : ''}Fällig am: ${NX.date(doc.due)}` : `\nGesamtbetrag: ${NX.eur(NX.total(doc))}\nGültig bis: ${NX.date(doc.valid)}`;
+            } catch (e) { extra = ''; }
+            const url = ((NX.db.auth && NX.db.auth.publicUrl) || '').replace(/\/$/, ''), link = url ? `${url}/kundenportal.html` : '';
+            NX.toast('E-Mail an ' + c.email + ' wird gesendet …');
+            const r = await Promise.race([
+                NX.formsubmit({ _to: c.email, _subject: `${kind} ${doc.number} – ${s.company}`, Empfänger: c.email, Nachricht: `Guten Tag ${c.first || ''} ${c.last || ''},\n\nwir haben Ihnen „${kind} ${doc.number}“ bereitgestellt.${extra}\n\nSie finden das vollständige Dokument in Ihrem Kundenportal${link ? ': ' + link : ' auf unserer Website'}.\n\nMit freundlichen Grüßen\n${s.company}` }),
+                new Promise(res => setTimeout(() => res({ ok: false, msg: 'Keine Antwort vom Mail-Dienst (Zeitüberschreitung).' }), 20000))
+            ]);
+            try { NX.mailLog(c.email, `${kind} ${doc.number}`, kind, r.ok ? 'an FormSubmit übergeben' : 'Fehler'); } catch (e) { }
+            NX.toast(r.ok ? 'E-Mail an ' + c.email + ' wurde an den Mail-Dienst übergeben.' : 'Die E-Mail ging nicht raus: ' + r.msg);
+            return true;
+        } catch (e) {
+            try { console.error(e); } catch (x) { }
+            NX.toast('Senden fehlgeschlagen: ' + ((e && e.message) || e));
+            return false;
+        }
+    };
+    /* Zahlung prüfen und bestätigen (Kundenmeldung oder erkannte Bankbuchung) – direkt aus Liste und Handlungsbedarf */
+    B.confirmPayment = (inv, done) => {
+        const d = NX.db.invoices.find(x => x.id === inv.id) || inv, open = NX.calc(d.items, d.vat, d.disc).gross - NX.paid(d);
+        if (open <= 0) { NX.toast('Diese Rechnung ist bereits vollständig bezahlt.'); return; }
+        const m = NX.modal('Zahlung prüfen – ' + d.number, `<form novalidate><p class="mut">${esc(NX.custName(d.customerId))} · offen: ${NX.eur(open)}</p>${payBox(d) || '<p class="mut">Keine gemeldete Zahlung. Du kannst trotzdem unter „Bearbeiten“ eine Zahlung eintragen.</p>'}<div class="acts"><button type="button" class="btn ghost" data-close>Schließen</button></div></form>`);
+        const q = x => NX.$(x, m.body), cf = q('[data-cf]'), cn = q('[data-cn]'); q('[data-close]').onclick = () => m.close();
+        const fin = () => { NX.save(); m.close(); done && done(); };
+        if (cf) cf.onclick = () => {
+            const er = q('#cfe'), a = NX.cents(q('#cfa').value);
+            if (a <= 0) { er.textContent = 'Bitte einen Betrag > 0 eingeben.'; return; }
+            if (a > open) { er.textContent = 'Der Betrag übersteigt den offenen Betrag (' + NX.eur(open) + ').'; return; }
+            d.payments = d.payments || []; d.payments.push({ date: q('#cfd').value || NX.today(), amount: a });
+            if (d.claim) { d.claimDone = d.claim.at; d.claimResult = 'bestätigt'; delete d.claim; }
+            const bk = NX.bookkeeping, rest = []; (d.bankHints || []).forEach(h => { if (h.amount === a && bk && bk.confirmBank) bk.confirmBank(h.bankId, d.id, h.amount); else rest.push(h); }); d.bankHints = rest;
+            NX.log('Zahlung bestätigt: ' + d.number + ' (' + NX.eur(a) + ')'); NX.toast('Zahlung bestätigt.'); fin();
+        };
+        if (cn) cn.onclick = () => { if (d.claim) { d.claimDone = d.claim.at; d.claimResult = 'abgelehnt'; delete d.claim; } NX.log('Zahlungsmeldung nicht bestätigt: ' + d.number); NX.toast('Zahlungsmeldung als „nicht eingegangen“ markiert.'); fin(); };
     };
     /* ---------- Angebote ---------- */
     function offerModal(o, done, pre) {
@@ -302,12 +336,14 @@
         items: () => [...NX.db.invoices].sort((a, b) => b.date.localeCompare(a.date)), text: i => i.number + ' ' + NX.custName(i.customerId), stat: i => NX.invStatus(i), dateOf: i => i.date,
         kpis: all => { const v = all.filter(i => !i.draft); return NX.kpi(v.filter(i => NX.open(i) > 0).length, 'Offene Rechnungen') + NX.kpi(v.filter(i => NX.open(i) <= 0).length, 'Bezahlt') + NX.kpi(NX.eur(v.reduce((s, i) => s + NX.open(i), 0)), 'Offener Betrag') + NX.kpi(NX.eur(v.reduce((s, i) => s + NX.paid(i), 0)), 'Eingegangen'); },
         head: ['Nummer', 'Kunde', 'Datum', 'Fällig', 'Brutto', 'Bezahlt', 'Offen', 'Status', ''],
-        row: i => [esc(i.number), esc(NX.custName(i.customerId)), NX.date(i.date), NX.date(i.due), NX.eur(NX.total(i)), NX.eur(NX.paid(i)), NX.eur(NX.open(i)), NX.badge(NX.invStatus(i)) + claimBadge(i), NX.btn('view', i.id, 'Ansehen') + NX.btn('edit', i.id, 'Bearbeiten') + NX.btn('mail', i.id, 'Senden')],
+        row: i => [esc(i.number), esc(NX.custName(i.customerId)), NX.date(i.date), NX.date(i.due), NX.eur(NX.total(i)), NX.eur(NX.paid(i)), NX.eur(NX.open(i)), NX.badge(NX.invStatus(i)) + claimBadge(i), (claimOn(i) || hintsOn(i) ? NX.btn('pay', i.id, 'Zahlung bestätigen') : '') + NX.btn('view', i.id, 'Ansehen') + NX.btn('edit', i.id, 'Bearbeiten') + NX.btn('mail', i.id, 'Senden')],
         onAdd: r => invoiceModal(null, r),
         act: (a, id, r) => { const i = NX.db.invoices.find(x => x.id === id); if (a === 'view')
             NX.viewDoc('invoice', i);
         else if (a === 'edit')
             invoiceModal(i, r);
+        else if (a === 'pay')
+            B.confirmPayment(i, r);
         else
             B.sendDoc('invoice', i, r); }
     });

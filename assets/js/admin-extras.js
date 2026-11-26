@@ -27,8 +27,8 @@
     });
     (D.invoices || []).forEach(function (i) {
       if (i.draft || NX.open(i) <= 0) return; var who = NX.custName ? NX.custName(i.customerId) : '';
-      if (i.claim && i.claim.at !== i.claimDone) items.push({ k: 'warn', t: 'Zahlung gemeldet: Rechnung ' + i.number + ' (' + who + ') – bitte prüfen und bestätigen', v: 'verrechnung-rechnungen', sel: 'button[data-act="edit"][data-id="' + i.id + '"]' });
-      else if ((i.bankHints || []).length) items.push({ k: 'info', t: 'Zahlung im Kontoauszug erkannt: Rechnung ' + i.number + ' – bitte bestätigen', v: 'verrechnung-rechnungen', sel: 'button[data-act="edit"][data-id="' + i.id + '"]' });
+      if (i.claim && i.claim.at !== i.claimDone) items.push({ k: 'warn', t: 'Zahlung gemeldet: Rechnung ' + i.number + ' (' + who + ') – bitte prüfen und bestätigen', v: 'verrechnung-rechnungen', sel: 'button[data-act="pay"][data-id="' + i.id + '"]' });
+      else if ((i.bankHints || []).length) items.push({ k: 'info', t: 'Zahlung im Kontoauszug erkannt: Rechnung ' + i.number + ' – bitte bestätigen', v: 'verrechnung-rechnungen', sel: 'button[data-act="pay"][data-id="' + i.id + '"]' });
     });
     var over = (D.invoices || []).filter(function (i) { return NX.invStatus(i) === 'Überfällig'; });
     if (over.length) items.push({ k: 'warn', t: over.length + (over.length === 1 ? ' überfällige Rechnung' : ' überfällige Rechnungen') + ' (' + NX.eur(over.reduce(function (s, i) { return s + NX.open(i); }, 0)) + ' offen)', v: 'verrechnung-rechnungen' });

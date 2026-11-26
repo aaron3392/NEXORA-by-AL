@@ -352,3 +352,10 @@
 - Admin: Dashboard-Handlungsbedarf und Hinweise (Glocke) für angenommen/abgelehnt (mit Grund) und gemeldete Zahlungen. Im Angebot **Entwicklung starten** (Projekt wird „Laufend“). In der Rechnung **Zahlung bestätigen** (bucht die Zahlung) oder **Nicht eingegangen**. Eine Rechnung gilt erst nach deiner Bestätigung als bezahlt.
 - Kontoauszug-Import: erkannte Zahlungen werden nur noch **vorgeschlagen** (Hinweis an der Rechnung) und erst nach deiner Bestätigung gebucht.
 - Server: Kunden dürfen nur Annehmen/Ablehnen (mit Grund) eigener versendeter Angebote und eine Zahlungsmeldung zu eigenen Rechnungen setzen; ein älterer Admin-Stand überschreibt solche Meldungen nicht.
+
+## Nachtrag 48 – E-Mail-Versand und „Senden“
+- **Fehlerbehebung E-Mail:** Der Server setzte „Referrer-Policy: same-origin“. Dadurch schickte der Browser an FormSubmit keine Herkunftsangabe mit, und FormSubmit lehnte jede Mail mit „Make sure you open this page through a web server“ ab. Jetzt wird die Herkunft (nur die Adresse der Seite) mitgeschickt. Betrifft alle Mails (Senden, Anfragen, Kontakt, Termin-Erinnerungen).
+- „Senden“ meldet jeden Schritt (im Portal freigegeben, E-Mail wird gesendet, Ergebnis), hat eine Zeitgrenze von 20 Sekunden für den Mail-Dienst und zeigt Fehler im Klartext.
+
+## Nachtrag 49 – Zahlung bestätigen direkt in der Liste
+- Rechnungen: bei gemeldeter oder im Kontoauszug erkannter Zahlung erscheint in der Zeile der Knopf **Zahlung bestätigen** (Dialog mit Betrag und Datum, „Zahlung bestätigen“ oder „Nicht eingegangen“). Der Handlungsbedarf im Dashboard öffnet denselben Dialog direkt.
