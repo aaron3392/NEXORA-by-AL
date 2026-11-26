@@ -294,3 +294,18 @@
 - Spalten werden an den Überschriften erkannt (Datum, Betrag oder Soll/Haben, Text, Name); sonst Zuordnung per Auswahl. PDF: Zeilen mit Datum und Betrag; Option „letzte/vorletzte Zahl“ (Saldo). Vorschau mit Auswahl und Einnahme/Ausgabe je Zeile; doppelte Buchungen werden erkannt.
 - Zahlungen mit Rechnungsnummer (R-JJJJ-NNNN) im Text werden automatisch der Rechnung zugeordnet, sofern der Betrag zum offenen Betrag passt.
 - Mitgelieferte Bibliotheken (`assets/vendor/`): pdf.js (Apache-2.0) und JSZip (MIT). Entfernt: „Synchronisierung testen“.
+
+## Nachtrag 37 – Layout, Live-Abgleich, Benachrichtigungen (noch nicht veröffentlicht)
+- Admin: feste Arbeitsfläche (Kopf und Fuß immer sichtbar), Seitenwahl (‹ 1 2 3 ›) für Menü und Listen bei Platzmangel (`assets/js/admin-layout.js`). Öffentliche Seite: Kopfleiste bleibt oben. Nach-oben-Button entfernt.
+- Live-Abgleich (`assets/js/live-sync.js`): die Administration prüft alle 4 s (im Hintergrund alle 15 s), ob sich die Datenbank geändert hat, und übernimmt Neues in die offene Seite, sobald gerade nichts bearbeitet wird. Neue Anfragen, Kundenregistrierungen, Support-Anfragen und Chat-Nachrichten lösen Hinweis, Ton, Tab-Titel-Zähler und (nach Erlaubnis über die Glocke in der Kopfleiste) eine Systembenachrichtigung am PC/Smartphone aus (`admin/sw.js`, nur über HTTPS).
+
+## Nachtrag 38 – Export-Auswahl, Beleg-/Kontoauszug-Import, Mitarbeiter-Rechte
+
+- **Export überall mit Auswahl CSV / Excel / PDF** (`assets/js/export.js`, Excel mit JSZip, PDF mit eigenem Schreiber).
+- **Import von Kontoauszügen und vom Firmenkonto bezahlten Rechnungen** als PDF oder Foto. Handy: PDF oder Foto (Galerie oder Kamera). PC: nur PDF. Kein OCR: Fotos werden mit Vorschau manuell erfasst, PDFs über Textmuster gelesen und vor dem Übernehmen geprüft.
+- **Buchhaltung:** der Stand wird bei jeder Ansicht neu aus den Daten geladen (verhindert veraltete Daten nach neuem Login).
+- **Mitarbeiter-Konten (nur mit Server):** In der Userverwaltung über „+ Neuer Benutzer“ wählbar: Kunde, Mitarbeiter oder Administrator. Der separate Administratoren-Bereich unter „Passwort ändern“ entfällt.
+  - Mitarbeiter haben Zugang zum Adminbereich, sehen aber nur freigegebene Bereiche: Anfragen, Kalender, Projekte & Support, Verrechnung, Buchhaltung, Finanzen, Zeiterfassung, Userverwaltung (Kunden), Einstellungen, Dateien.
+  - Die Rechte werden **auf dem Server** bei jeder Anfrage aus dem Konto gelesen: nicht freigegebene Daten werden gar nicht ausgeliefert, Schreibzugriffe werden verworfen, Backups, Konten und Automatik bleiben Administratoren vorbehalten. Änderungen an Rechten oder Sperren wirken sofort.
+  - Kunden können sich nie im Adminbereich anmelden. Eigenes Konto und letzter Administrator können nicht gelöscht, gesperrt oder herabgestuft werden.
+  - Kunden-Datensätze können mit Server nicht mehr die Rolle „Mitarbeiter“ erhalten (diese Rolle sperrte das Kundenportal).

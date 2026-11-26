@@ -36,6 +36,26 @@ function verifyPw(stored, clientHash) {
   const [, salt, hex] = stored.split('$'); return safeEq(crypto.scryptSync(String(clientHash), salt, 32).toString('hex'), hex);
 }
 const ADMINS = 'nx_admins';
+/* Mitarbeiter-Rechte: je Bereich lesbare (r) und beschreibbare (w) Datenfelder sowie Zusatzdaten (kv). Administratoren dürfen alles. */
+const AREAS = {
+  anfragen: { r: ['inquiries'], w: ['inquiries'] },
+  kalender: { r: ['inquiries', 'projects'], w: [], kv: ['nexora_cal_reminders'] },
+  projekte: { r: ['projects', 'projectArchive', 'support', 'reviews'], w: ['projects', 'projectArchive', 'support', 'reviews'] },
+  verrechnung: { r: ['offers', 'invoices', 'reminders', 'subscriptions', 'projects', 'projectArchive', 'time'], w: ['offers', 'invoices', 'reminders', 'subscriptions'] },
+  buchhaltung: { r: ['invoices'], w: [], kv: ['nx_accounting_v1'] },
+  finanzen: { r: ['offers', 'invoices', 'reminders', 'subscriptions', 'projects', 'projectArchive', 'time'], w: [] },
+  zeiterfassung: { r: ['time', 'projects', 'projectArchive'], w: ['time'] },
+  kunden: { r: ['customers', 'chat'], w: ['customers', 'chat'] },
+  einstellungen: { r: ['settings'], w: ['settings'] },
+  dateien: { r: [], w: [] }
+};
+const cleanPerms = p => (isArr(p) ? p : []).filter((x, i, a) => AREAS[x] && a.indexOf(x) === i);
+const isStaff = s => s && (s.role === 'admin' || s.role === 'employee');
+const canArea = (s, a) => s && (s.role === 'admin' || (s.role === 'employee' && (s.perms || []).includes(a)));
+async function staffPwChange(s, hash) {
+  const list = await getAdmins(), a = list.find(x => adminName(x) === String(s.uid).toLowerCase()); if (!a) return;
+  a.pw = secure(hash); await kvPut(ADMINS, list); for (const r of ['admin', 'employee']) await pool.query('update sessions set ph=$1 where role=$2 and uid=$3', [hash, r, s.uid]);
+}
 async function getAdmins() { const r = await kvGet(ADMINS); return r && isArr(r.value) ? r.value : []; }
 const adminName = a => String(a.user).toLowerCase();
 
@@ -60,8 +80,14 @@ setInterval(() => { const n = Date.now(); hits.forEach((a, k) => { const f = a.f
 async function session(req) {
   const t = cookies(req).nx_sid; if (!t) return { role: 'none' };
   const r = await pool.query('select role, uid, exp, ph from sessions where token=$1', [t]);
-  const s = r.rows[0]; if (s && ((MODE === 'public' && s.role === 'admin') || (MODE === 'admin' && s.role !== 'admin'))) return { role: 'none' };
+  const s = r.rows[0]; if (s && ((MODE === 'public' && (s.role === 'admin' || s.role === 'employee')) || (MODE === 'admin' && s.role !== 'admin' && s.role !== 'employee'))) return { role: 'none' };
   if (!s || Number(s.exp) < Date.now()) { if (s) pool.query('delete from sessions where token=$1', [t]).catch(() => { }); return { role: 'none' }; }
+  if (s.role === 'admin' || s.role === 'employee') {   /* Konto muss noch existieren und darf nicht gesperrt sein; Rechte stammen immer aus dem aktuellen Konto */
+    const a = (await getAdmins()).find(x => adminName(x) === String(s.uid).toLowerCase());
+    if (!a || a.status === 'gesperrt') return { role: 'none' };
+    const role = a.role === 'employee' ? 'employee' : 'admin';
+    return { role, uid: a.user, token: t, ph: s.ph || '', perms: role === 'employee' ? cleanPerms(a.perms) : null };
+  }
   return { role: s.role, uid: s.uid, token: t, ph: s.ph || '' };
 }
 const cookieStr = (req, v, ms) => 'nx_sid=' + v + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + Math.floor(ms / 1000) + (/https/.test(req.headers['x-forwarded-proto'] || '') ? '; Secure' : '');
@@ -86,15 +112,25 @@ function customerView(db, id) {
   if (isObj(db.chat)) v.chat = db.chat[id] ? { [id]: db.chat[id] } : {};
   return v;
 }
+function employeeView(db, s) {
+  const v = emptyShape(db), ro = new Set(['settings']), perms = s.perms || [];
+  perms.forEach(p => { (AREAS[p] ? AREAS[p].r : []).forEach(k => ro.add(k)); });
+  if (perms.some(p => p !== 'dateien' && p !== 'einstellungen')) ro.add('customers');
+  ro.forEach(k => { if (db[k] !== undefined) v[k] = clone(db[k]); });
+  v.customers = (v.customers || []).map(c => { const x = Object.assign({}, c); delete x.pwHash; return x; });
+  v.auth = { user: s.uid, hash: s.ph || '', role: 'employee', perms };
+  return v;
+}
 async function viewFor(s, db) {
-  if (s.role === 'admin') { const v = clone(db); v.auth = { user: s.uid, hash: s.ph || '' }; return v; }
+  if (s.role === 'admin') { const v = clone(db); v.auth = { user: s.uid, hash: s.ph || '', role: 'admin' }; return v; }
+  if (s.role === 'employee') return employeeView(db, s);
   if (s.role === 'customer') { const v = customerView(db, s.uid); if (v.customers[0]) v.customers[0].pwHash = s.ph || ''; return v; }
   return publicView(db);
 }
 async function kvFor(s) {
-  if (s.role !== 'admin') return {};
+  if (!isStaff(s)) return {};
   const o = {}, r = await pool.query("select key, value from kv where key like 'nx_accounting_v1' or key like 'nexora_cal_reminders' or key like 'nexora_stat_%'");
-  r.rows.forEach(x => { o[x.key] = x.value; }); return o;
+  r.rows.forEach(x => { if (s.role === 'admin' || /^nexora_stat_/.test(x.key) || (x.key === 'nx_accounting_v1' && canArea(s, 'buchhaltung')) || (x.key === 'nexora_cal_reminders' && canArea(s, 'kalender'))) o[x.key] = x.value; }); return o;
 }
 
 /* ---------- Schreiben ---------- */
@@ -213,15 +249,23 @@ async function api(req, res, url) {
     const b = await readBody(req), C = b.db; if (!isObj(C)) return send(res, 400, { error: 'Daten fehlen' });
     const row = await kvGet(DBKEY);
     if (!row) { if (!isArr(C.customers)) return send(res, 400, { error: 'Ungültige Startdaten' }); return send(res, 200, { ok: true, rev: await kvPut(DBKEY, stripCustomerData(C)) }); }
-    if (MODE === 'admin' && s.role !== 'admin') return send(res, 403, { error: 'Nur Administratoren.' });
+    if (MODE === 'admin' && !isStaff(s)) return send(res, 403, { error: 'Nur Administratoren.' });
     const S = row.value; let out;
     if (s.role === 'admin') {
       if (!isArr(C.customers) || !isArr(C.invoices)) return send(res, 400, { error: 'Ungültige Daten' });
-      if (isObj(C.auth) && C.auth.hash && C.auth.hash !== s.ph) { /* Passwort geändert */
-        const list = await getAdmins(), a = list.find(x => adminName(x) === String(s.uid).toLowerCase()); if (a) { a.pw = secure(C.auth.hash); await kvPut(ADMINS, list); await pool.query('update sessions set ph=$1 where role=$2 and uid=$3', [C.auth.hash, 'admin', s.uid]); }
-      }
+      if (isObj(C.auth) && C.auth.hash && C.auth.hash !== s.ph) await staffPwChange(s, C.auth.hash);   /* Passwort geändert */
       out = Number(b.base) === Number(row.rev) ? C : mergeAdmin(S, C, Number(b.base) || 0); delete out.auth;
       (out.customers || []).forEach(c => { if (c.pwHash && !isSecured(c.pwHash)) c.pwHash = secure(c.pwHash); });
+    }
+    else if (s.role === 'employee') {
+      if (!isArr(C.customers) || !isArr(C.invoices)) return send(res, 400, { error: 'Ungültige Daten' });
+      if (isObj(C.auth) && C.auth.hash && C.auth.hash !== s.ph) await staffPwChange(s, C.auth.hash);
+      const wk = new Set(); (s.perms || []).forEach(p => (AREAS[p] ? AREAS[p].w : []).forEach(k => wk.add(k)));
+      const cand = clone(S); wk.forEach(k => { if (C[k] !== undefined) cand[k] = C[k]; });
+      if (canArea(s, 'buchhaltung') && !wk.has('invoices')) (cand.invoices || []).forEach(i => { const ci = C.invoices.find(x => x.id === i.id); if (ci && isArr(ci.payments)) i.payments = ci.payments; });
+      appendNew(cand, 'activity', C.activity, 60); appendNew(cand, 'mails', C.mails, 100);
+      (cand.customers || []).forEach(c => { const sc = (S.customers || []).find(x => x.id === c.id); if (sc) { if (sc.pwHash) c.pwHash = sc.pwHash; if (!wk.has('customers')) Object.assign(c, sc); } else if (c.pwHash && !isSecured(c.pwHash)) c.pwHash = secure(c.pwHash); });
+      out = Number(b.base) === Number(row.rev) ? cand : mergeAdmin(S, cand, Number(b.base) || 0); delete out.auth;
     }
     else if (s.role === 'customer') { out = stampNew(S, mergeCustomer(S, C, s.uid, s.ph), Number(row.rev) + 1); const me = (out.customers || []).find(c => c.id === s.uid), cc = (C.customers || []).find(c => c.id === s.uid); if (me && cc && cc.pwHash && cc.pwHash !== s.ph) await pool.query('update sessions set ph=$1 where token=$2', [cc.pwHash, s.token]); }
     else out = stampNew(S, mergePublic(S, C, ip), Number(row.rev) + 1);
@@ -230,8 +274,8 @@ async function api(req, res, url) {
   let m = p.match(/^\/api\/kv\/([A-Za-z0-9_]+)$/);
   if (m && req.method === 'PUT') {
     const k = m[1], b = await readBody(req);
-    if (ADMIN_KV.test(k)) { if (s.role !== 'admin') return send(res, 403, { error: 'Nicht erlaubt' }); return send(res, 200, { ok: true, rev: await kvPut(k, b.value) }); }
-    if (STAT_KV.test(k) && MODE === 'admin' && s.role !== 'admin') return send(res, 403, { error: 'Nur Administratoren.' });
+    if (ADMIN_KV.test(k)) { if (!(s.role === 'admin' || (k === 'nx_accounting_v1' && canArea(s, 'buchhaltung')) || (k === 'nexora_cal_reminders' && canArea(s, 'kalender')))) return send(res, 403, { error: 'Nicht erlaubt' }); return send(res, 200, { ok: true, rev: await kvPut(k, b.value) }); }
+    if (STAT_KV.test(k) && MODE === 'admin' && !isStaff(s)) return send(res, 403, { error: 'Nur Administratoren.' });
     if (STAT_KV.test(k)) { const row = await kvGet(k), cur = row ? row.value : {}, nv = isObj(b.value) ? b.value : {}; Object.keys(nv).forEach(d => { if (/^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Number(nv[d]))) cur[d] = Math.max(Number(cur[d]) || 0, Math.min(Number(nv[d]), 1e7)); }); return send(res, 200, { ok: true, rev: await kvPut(k, cur) }); }
     return send(res, 404, { error: 'Unbekannt' });
   }
@@ -240,7 +284,7 @@ async function api(req, res, url) {
     const b = await readBody(req, 1e5), row = await kvGet(DBKEY); if (!row) return send(res, 409, { empty: true });
     if ((MODE === 'public' && b.role === 'admin') || (MODE === 'admin' && b.role !== 'admin')) return send(res, 403, { error: 'Hier nicht möglich.' });
     const db = row.value; let sess = null;
-    if (b.role === 'admin') { const a = (await getAdmins()).find(x => adminName(x) === String(b.user || '').toLowerCase()); if (a && verifyPw(a.pw, b.hash)) sess = { role: 'admin', uid: a.user }; }
+    if (b.role === 'admin') { const a = (await getAdmins()).find(x => adminName(x) === String(b.user || '').toLowerCase()); if (a && a.status !== 'gesperrt' && verifyPw(a.pw, b.hash)) sess = { role: a.role === 'employee' ? 'employee' : 'admin', uid: a.user, perms: a.role === 'employee' ? cleanPerms(a.perms) : null }; }
     else if (b.role === 'customer') { const c = (db.customers || []).find(x => String(x.email).toLowerCase() === String(b.user || '').toLowerCase()); if (c && c.pwHash && verifyPw(c.pwHash, b.hash) && c.role !== 'Mitarbeiter') { sess = { role: 'customer', uid: c.id }; if (!isSecured(c.pwHash)) { c.pwHash = secure(b.hash); await kvPut(DBKEY, db); } } }
     if (!sess) { hit('login:' + ip); return send(res, 401, { ok: false }); }
     return startSession(req, res, sess, b.hash, db);
@@ -258,10 +302,23 @@ async function api(req, res, url) {
   if (am) {
     if (s.role !== 'admin') return send(res, 403, { error: 'Nicht erlaubt' });
     const list = await getAdmins();
-    if (req.method === 'GET' && !am[1]) return send(res, 200, { admins: list.map(a => ({ user: a.user, created: a.created })), me: s.uid });
-    if (req.method === 'POST' && !am[1]) { const b = await readBody(req, 1e5), user = String(b.user || '').trim(); if (user.length < 3 || !b.hash) return send(res, 400, { error: 'Benutzername oder Passwort fehlt.' }); if (list.some(a => adminName(a) === user.toLowerCase())) return send(res, 409, { error: 'Diesen Benutzernamen gibt es schon.' }); list.push({ user, pw: secure(b.hash), created: Date.now() }); await kvPut(ADMINS, list); return send(res, 200, { ok: true }); }
-    if (req.method === 'DELETE' && am[1]) { const u = decodeURIComponent(am[1]).toLowerCase(); if (u === String(s.uid).toLowerCase()) return send(res, 400, { error: 'Das eigene Konto kann nicht gelöscht werden.' }); const n = list.filter(a => adminName(a) !== u); if (n.length === list.length) return send(res, 404, { error: 'Unbekannt' }); await kvPut(ADMINS, n); await pool.query('delete from sessions where role=$1 and lower(uid)=$2', ['admin', u]); return send(res, 200, { ok: true }); }
-    if (req.method === 'PUT' && am[1]) { const u = decodeURIComponent(am[1]).toLowerCase(), b = await readBody(req, 1e5), a = list.find(x => adminName(x) === u); if (!a || !b.hash) return send(res, 400, { error: 'Ungültig' }); a.pw = secure(b.hash); await kvPut(ADMINS, list); await pool.query('delete from sessions where role=$1 and lower(uid)=$2 and token<>$3', ['admin', u, s.token || '']); return send(res, 200, { ok: true }); }
+    const pub = a => ({ user: a.user, name: a.name || '', role: a.role === 'employee' ? 'employee' : 'admin', perms: a.role === 'employee' ? cleanPerms(a.perms) : [], status: a.status === 'gesperrt' ? 'gesperrt' : 'aktiv', created: a.created });
+    if (req.method === 'GET' && !am[1]) return send(res, 200, { admins: list.map(pub), me: s.uid, areas: Object.keys(AREAS) });
+    if (req.method === 'POST' && !am[1]) { const b = await readBody(req, 1e5), user = String(b.user || '').trim(); if (user.length < 3 || !b.hash) return send(res, 400, { error: 'Benutzername oder Passwort fehlt.' }); if (list.some(a => adminName(a) === user.toLowerCase())) return send(res, 409, { error: 'Diesen Benutzernamen gibt es schon.' }); const emp = b.role === 'employee'; list.push({ user, name: String(b.name || '').trim().slice(0, 80), role: emp ? 'employee' : 'admin', perms: emp ? cleanPerms(b.perms) : [], status: 'aktiv', pw: secure(b.hash), created: Date.now() }); await kvPut(ADMINS, list); return send(res, 200, { ok: true }); }
+    const isLastAdmin = u => { const a = list.find(x => adminName(x) === u); return a && a.role !== 'employee' && a.status !== 'gesperrt' && list.filter(x => x.role !== 'employee' && x.status !== 'gesperrt').length <= 1; };
+    if (req.method === 'DELETE' && am[1]) { const u = decodeURIComponent(am[1]).toLowerCase(); if (u === String(s.uid).toLowerCase()) return send(res, 400, { error: 'Das eigene Konto kann nicht gelöscht werden.' }); if (isLastAdmin(u)) return send(res, 400, { error: 'Der letzte Administrator kann nicht gelöscht werden.' }); const n = list.filter(a => adminName(a) !== u); if (n.length === list.length) return send(res, 404, { error: 'Unbekannt' }); await kvPut(ADMINS, n); for (const r of ['admin', 'employee']) await pool.query('delete from sessions where role=$1 and lower(uid)=$2', [r, u]); return send(res, 200, { ok: true }); }
+    if (req.method === 'PUT' && am[1]) {
+      const u = decodeURIComponent(am[1]).toLowerCase(), b = await readBody(req, 1e5), a = list.find(x => adminName(x) === u); if (!a) return send(res, 404, { error: 'Unbekannt' });
+      const self = u === String(s.uid).toLowerCase(), wantRole = b.role === 'employee' ? 'employee' : (b.role === 'admin' ? 'admin' : (a.role === 'employee' ? 'employee' : 'admin'));
+      if (self && (wantRole !== 'admin' || b.status === 'gesperrt')) return send(res, 400, { error: 'Das eigene Konto kann nicht eingeschränkt oder gesperrt werden.' });
+      if (isLastAdmin(u) && (wantRole !== 'admin' || b.status === 'gesperrt')) return send(res, 400, { error: 'Der letzte Administrator kann nicht eingeschränkt oder gesperrt werden.' });
+      if (b.name !== undefined) a.name = String(b.name).trim().slice(0, 80);
+      a.role = wantRole; a.perms = wantRole === 'employee' ? cleanPerms(b.perms !== undefined ? b.perms : a.perms) : []; if (b.status) a.status = b.status === 'gesperrt' ? 'gesperrt' : 'aktiv';
+      if (b.hash) a.pw = secure(b.hash);
+      await kvPut(ADMINS, list);
+      if (b.hash || a.status === 'gesperrt') for (const r of ['admin', 'employee']) await pool.query('delete from sessions where role=$1 and lower(uid)=$2 and token<>$3', [r, u, s.token || '']);   /* Rechte und Rolle stammen bei jeder Anfrage aus dem Konto */
+      return send(res, 200, { ok: true });
+    }
   }
   if (p === '/api/backups' || /^\/api\/backups\/\d+(\/(download|restore))?$/.test(p)) {
     if (s.role !== 'admin') return send(res, 403, { error: 'Nicht erlaubt' });
@@ -273,11 +330,11 @@ async function api(req, res, url) {
   }
   if (req.method === 'POST' && p === '/api/automation/run') { if (s.role !== 'admin') return send(res, 403, { error: 'Nicht erlaubt' }); await runAutomation(); return send(res, 200, { ok: true }); }
   if (p === '/api/files' || /^\/api\/files\/[A-Za-z0-9_-]+$/.test(p)) {
-    if (s.role !== 'admin' && s.role !== 'customer') return send(res, 403, { error: 'Bitte anmelden.' });
+    if (s.role !== 'admin' && s.role !== 'customer' && !canArea(s, 'dateien')) return send(res, 403, { error: 'Bitte anmelden.' });
     const row = await kvGet(DBKEY), db = row ? row.value : {};
     if (req.method === 'GET' && p === '/api/files') {
       const r = await pool.query('select id, owner, name, mime, size, created_at, uploaded_by from files order by created_at desc');
-      const list = r.rows.filter(f => s.role === 'admin' || ownerOk(db, f.owner, s.uid));
+      const list = r.rows.filter(f => isStaff(s) || ownerOk(db, f.owner, s.uid));
       return send(res, 200, { files: list.map(f => ({ id: f.id, owner: f.owner, name: f.name, size: Number(f.size), created_at: f.created_at, by: f.uploaded_by })) });
     }
     if (req.method === 'POST' && p === '/api/files') {
@@ -294,7 +351,7 @@ async function api(req, res, url) {
     const fid = p.split('/')[3];
     if (req.method === 'GET' && fid) {
       const r = await pool.query('select id, owner, name, mime, data from files where id=$1', [fid]), f = r.rows[0];
-      if (!f || (s.role !== 'admin' && !ownerOk(db, f.owner, s.uid))) return send(res, 404, { error: 'Nicht gefunden' });
+      if (!f || (!isStaff(s) && !ownerOk(db, f.owner, s.uid))) return send(res, 404, { error: 'Nicht gefunden' });
       res.writeHead(200, { 'Content-Type': f.mime, 'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent(f.name), 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Length': f.data.length }); return res.end(f.data);
     }
     if (req.method === 'DELETE' && fid) { if (s.role !== 'admin') return send(res, 403, { error: 'Nicht erlaubt' }); await pool.query('delete from files where id=$1', [fid]); return send(res, 200, { ok: true }); }
@@ -305,7 +362,7 @@ async function api(req, res, url) {
 
 /* ---------- Statische Dateien ---------- */
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };
-const ADMIN_ONLY_JS = /^\/assets\/js\/(admin|admin-extras|billing|finance|time|bookkeeping|bank-import)\.js$/;
+const ADMIN_ONLY_JS = /^\/assets\/js\/(admin|admin-extras|billing|finance|time|bookkeeping|bank-import|admin-layout|live-sync|export)\.js$/;
 function serve(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (MODE === 'public' && (rel === '/admin' || rel.startsWith('/admin/') || ADMIN_ONLY_JS.test(rel))) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Nicht gefunden'); }

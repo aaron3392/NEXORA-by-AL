@@ -215,8 +215,6 @@
     dayPending = !dayRefresh();
   });
   setInterval(function () { if (dayPending && dayRefresh()) dayPending = false; }, 4000);
-  /* Kopfleiste (Logo, Burger) scrollt mit der Seite nach oben weg */
-  try { var hd = document.getElementById('hdr'); if (hd) hd.classList.add('nx-ax-hdr-scroll'); } catch (e) { }
   /* Sicherheitsnetz: nie seitlich scrollen */
   try { document.documentElement.style.overflowX = 'clip'; } catch (e) { }
   setTimeout(syncOrders, 1200); setInterval(syncOrders, 30000);
@@ -896,44 +894,6 @@
     });
   }
 
-  /* ---------- Administratoren (nur mit Server): weitere Admin-Konten anlegen, Passwort setzen, löschen ---------- */
-  function adminAccounts(c) {
-    var BE = NX.backend; if (!BE || !BE.on || BE.role !== 'admin' || c.querySelector('.nx-ax-adm')) return;
-    var box = document.createElement('section'); box.className = 'card nx-ax-adm';
-    box.innerHTML = '<h3>Administratoren</h3><ul class="nx-ax-admlist" aria-live="polite"></ul>' +
-      '<form novalidate class="nx-ax-admform"><h4>Weiteren Administrator anlegen</h4><div class="field"><label for="nxau">Benutzername</label><input id="nxau" name="u" autocomplete="off"></div>' +
-      '<div class="field"><label for="nxap">Passwort (mind. 12 Zeichen, Buchstaben und Zahlen)</label><div class="nx-password-wrap"><input id="nxap" name="p" type="password" autocomplete="new-password"></div></div><p class="err" role="alert"></p><button class="btn" type="submit">Administrator anlegen</button></form>';
-    c.appendChild(box);
-    var ul = box.querySelector('ul'), err = box.querySelector('.err');
-    var api = function (m, url, body) { return fetch(url, { method: m, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); }); };
-    var strong = function (p) { return p.length >= 12 && /[A-Za-z]/.test(p) && /\d/.test(p); };
-    function load() {
-      api('GET', '/api/admins').then(function (r) {
-        if (!r.ok) { ul.innerHTML = '<li class="mut">Liste nicht verfügbar.</li>'; return; }
-        ul.innerHTML = r.j.admins.map(function (a) {
-          var me = a.user === r.j.me;
-          return '<li><span><strong>' + esc(a.user) + '</strong>' + (me ? ' <small class="mut">(du)</small>' : '') + '<br><small class="mut">angelegt am ' + esc(NX.date(a.created)) + '</small></span><span class="nx-ax-admact"><button type="button" class="btn ghost sm" data-pw="' + esc(a.user) + '">Passwort setzen</button>' + (me ? '' : '<button type="button" class="btn ghost sm" data-del="' + esc(a.user) + '">Löschen</button>') + '</span></li>';
-        }).join('');
-      });
-    }
-    load();
-    box.addEventListener('click', function (e) {
-      var d = e.target.closest('[data-del]'), p = e.target.closest('[data-pw]');
-      if (d) NX.confirm('Administrator „' + d.dataset.del + '“ löschen?', 'Löschen').then(function (y) { if (!y) return; api('DELETE', '/api/admins/' + encodeURIComponent(d.dataset.del)).then(function (r) { NX.toast(r.ok ? 'Administrator gelöscht.' : (r.j.error || 'Nicht möglich.')); load(); }); });
-      if (p) { var m = NX.modal('Passwort setzen: ' + p.dataset.pw, '<form novalidate><div class="field"><label for="nxnp">Neues Passwort (mind. 12 Zeichen, Buchstaben und Zahlen)</label><div class="nx-password-wrap"><input id="nxnp" name="p" type="password" autocomplete="new-password"></div></div><p class="err" role="alert"></p><div class="acts"><button class="btn" type="submit">Speichern</button></div></form>'); var f = m.body.querySelector('form');
-        f.onsubmit = function (ev) { ev.preventDefault(); var v = f.p.value; if (!strong(v)) { f.querySelector('.err').textContent = 'Mindestens 12 Zeichen mit Buchstaben und Zahlen.'; return; }
-          NX.hash(v).then(function (h) { return api('PUT', '/api/admins/' + encodeURIComponent(p.dataset.pw), { hash: h }); }).then(function (r) { if (r.ok) { NX.toast('Passwort gesetzt.'); m.close(); } else f.querySelector('.err').textContent = r.j.error || 'Nicht möglich.'; }); };
-      }
-    });
-    var f = box.querySelector('form');
-    f.onsubmit = function (e) {
-      e.preventDefault(); var u = f.u.value.trim(), p = f.p.value;
-      if (u.length < 3) { err.textContent = 'Benutzername: mindestens 3 Zeichen.'; return; }
-      if (!strong(p)) { err.textContent = 'Passwort: mindestens 12 Zeichen mit Buchstaben und Zahlen.'; return; }
-      NX.hash(p).then(function (h) { return api('POST', '/api/admins', { user: u, hash: h }); }).then(function (r) { if (r.ok) { err.textContent = ''; f.reset(); NX.toast('Administrator angelegt.'); load(); } else err.textContent = r.j.error || 'Nicht möglich.'; });
-    };
-  }
-
   /* ---------- Nur mit Server: Dateien, Server-Sicherungen, Automatik ---------- */
   var beOn = function () { return NX.backend && NX.backend.on && NX.backend.role === 'admin'; };
   var rq = function (m, url, body, raw) { return fetch(url, { method: m, credentials: 'same-origin', headers: raw ? { 'Content-Type': 'application/octet-stream' } : { 'Content-Type': 'application/json' }, body: raw || (body ? JSON.stringify(body) : undefined) }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); }); };
@@ -948,7 +908,7 @@
   function filesView(c) {
     if (c.querySelector('.nx-ax-files')) return;
     var box = document.createElement('section'); box.className = 'card nx-ax-files'; c.appendChild(box);
-    if (!beOn()) { box.innerHTML = '<p class="mut">Dateien werden auf dem Server gespeichert und sind nur mit Server-Betrieb verfügbar.</p>'; return; }
+    if (!(beOn() || (NX.backend && NX.backend.on && NX.backend.role === 'employee'))) { box.innerHTML = '<p class="mut">Dateien werden auf dem Server gespeichert und sind nur mit Server-Betrieb verfügbar.</p>'; return; }
     var D = NX.db, opts = function () {
       var o = '<optgroup label="Kunde">' + (D.customers || []).map(function (u) { return '<option value="customer:' + esc(u.id) + '">' + esc(u.first + ' ' + u.last) + '</option>'; }).join('') + '</optgroup>';
       o += '<optgroup label="Projekt">' + (D.projects || []).map(function (p) { return '<option value="project:' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('') + '</optgroup>';
@@ -1010,16 +970,12 @@
     mountSearch(); mountBurger(); setMenu(false); scheduleFit(); c.classList.add('nx-ax-cnt');
     c.classList.toggle('nx-ax-dash', id === 'dashboard'); c.classList.toggle('nx-ax-calpage', id === 'kalender');
     var full = id === 'dashboard' || id === 'kalender';
-    var ft = document.getElementById('ftr'); if (ft) ft.style.padding = full ? '6px 0' : '';
-    var sh = document.querySelector('.shell'); if (sh) sh.style.minHeight = full ? 'calc(100vh - 78px - 40px)' : '';
-    var sd = document.querySelector('.side'); if (sd) sd.style.height = full && window.innerWidth > 900 ? 'calc(100vh - 78px - 40px)' : '';
     if (id === 'dashboard') { dashboard(c); actLists(c); charts(c); kpiIcons(c); }
     if (id === 'user') { archivePanel(c); var tb = c.querySelector('#tb'); if (tb) new MutationObserver(function () { archivePanel(c); }).observe(tb, { childList: true }); }
     if (id === 'projekte') orderArchivePanel(c);
     if (id === 'backup') { backupPanel(c); serverBackups(c); }
     if (id === 'dateien') filesView(c);
     if (id === 'einstellungen') automationCard(c);
-    if (id === 'passwort') adminAccounts(c);
     if (id === 'kalender') calendarView(c);
     chips(c);
     if (pending && pending.view === id) {

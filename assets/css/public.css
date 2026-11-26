@@ -53,7 +53,7 @@ body.nx-public :focus-visible { outline: 2px solid var(--nx-neon); outline-offse
 .nx-auto { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 
 /* ---------- Header: zentrierte, abgerundete Neon-Leiste ---------- */
-.nx-hdr { position: absolute; top: 14px; left: 0; right: 0; z-index: 100; padding: 0 16px; pointer-events: none; } /* scrollt mit der Seite nach oben weg */
+.nx-hdr { position: fixed; top: 14px; left: 0; right: 0; z-index: 100; padding: 0 16px; pointer-events: none; } /* bleibt immer sichtbar */
 .nx-bar {
   pointer-events: auto; position: relative; max-width: 1240px; margin: 0 auto;
   display: flex; align-items: center; gap: 18px; padding: 8px 10px 8px 22px; border-radius: 999px;
@@ -398,7 +398,6 @@ body.nx-public footer.nx-ftr a:hover { color: #fff; }
 @media (prefers-reduced-motion: reduce) { .nx-step .nx-step-no { filter: none; transition: none; } }
 .nx-card[hidden] { display: none; }
 
-/* ---------- Nach-oben-Button ---------- */
 
 /* ---------- Auswahl-Kacheln (Zahlungsmodell, Hosting): ganze Kachel anklickbar, ohne Radio-Kreis ---------- */
 .nx-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -431,9 +430,3 @@ html { overflow-x: clip; }
 body { max-width: 100%; }
 img, video, iframe { max-width: 100%; }
 
-/* Nach-oben-Button: rechts unten, erscheint erst nach dem Hinunterscrollen (alle Geräte) */
-.nx-ax-top { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 80; width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 1px solid rgba(174, 83, 255, .55); background: rgba(10, 6, 18, .88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 22px rgba(113, 38, 190, .45); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .25s, transform .25s, border-color .2s; }
-.nx-ax-top.on { opacity: 1; transform: none; pointer-events: auto; }
-.nx-ax-top svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.nx-ax-top:hover, .nx-ax-top:focus-visible { border-color: #b86bff; outline: 0; }
-@media print { .nx-ax-top { display: none; } }
