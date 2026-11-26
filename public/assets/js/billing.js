@@ -49,6 +49,26 @@
         const extra = type === 'reminder' ? `\nOffener Betrag: ${NX.eur(NX.open(NX.db.invoices.find(i => i.id === d.invoiceId)))}${d.fee ? ' zzgl. Gebühr ' + NX.eur(d.fee) : ''}\nZahlbar bis: ${NX.date(d.due)}` : type === 'invoice' ? `\nGesamtbetrag: ${NX.eur(NX.total(d))}\n${d.billingPeriod ? 'Abrechnungszeitraum: ' + d.billingPeriod + '\n' : ''}Fällig am: ${NX.date(d.due)}` : `\nGesamtbetrag: ${NX.eur(NX.total(d))}\nGültig bis: ${NX.date(d.valid)}`;
         NX.mailPreview({ kind, to: c.email || '', subject: `${kind} ${d.number} – ${s.company}`, message: `Guten Tag ${c.first || ''} ${c.last || ''},\n\nzu Ihrem Dokument „${kind} ${d.number}“ finden Sie nachfolgend die wichtigsten Angaben.${extra}\n\nBitte verwenden Sie das separat bereitgestellte Dokument für die vollständigen Rechnungs- bzw. Angebotsdetails.\n\nMit freundlichen Grüßen\n${s.company}` });
     };
+    /* Senden: gibt das Dokument im Kundenportal frei und verschickt die E-Mail an den Kunden */
+    B.sendDoc = async (type, d, done) => {
+        const list = type === 'offer' ? NX.db.offers : type === 'invoice' ? NX.db.invoices : NX.db.reminders, doc = list.find(x => x.id === d.id) || d;
+        const c = NX.cust(doc.customerId) || {}, s = NX.db.settings;
+        if (!c.id) { NX.toast('Bitte zuerst einen Kunden wählen.'); return false; }
+        if (type === 'offer' && doc.status === 'Entwurf') doc.status = 'Versendet';
+        if (type === 'invoice') doc.draft = false;
+        doc.sentAt = Date.now(); NX.save();
+        const kind = type === 'offer' ? (doc.type || 'Angebot') : type === 'invoice' ? doc.kind : doc.type;
+        const extra = type === 'reminder' ? `\nOffener Betrag: ${NX.eur(NX.open(NX.db.invoices.find(i => i.id === doc.invoiceId)))}${doc.fee ? ' zzgl. Gebühr ' + NX.eur(doc.fee) : ''}\nZahlbar bis: ${NX.date(doc.due)}` : type === 'invoice' ? `\nGesamtbetrag: ${NX.eur(NX.total(doc))}\n${doc.billingPeriod ? 'Abrechnungszeitraum: ' + doc.billingPeriod + '\n' : ''}Fällig am: ${NX.date(doc.due)}` : `\nGesamtbetrag: ${NX.eur(NX.total(doc))}\nGültig bis: ${NX.date(doc.valid)}`;
+        const url = ((NX.db.auth && NX.db.auth.publicUrl) || '').replace(/\/$/, ''), link = url ? `${url}/kundenportal.html` : '';
+        NX.log(kind + ' ' + doc.number + ' gesendet an ' + (c.email || 'Kundenportal'));
+        let msg = 'Im Kundenportal bereitgestellt.';
+        if (c.email) {
+            const r = await NX.formsubmit({ _to: c.email, _subject: `${kind} ${doc.number} – ${s.company}`, Empfänger: c.email, Nachricht: `Guten Tag ${c.first || ''} ${c.last || ''},\n\nwir haben Ihnen „${kind} ${doc.number}“ bereitgestellt.${extra}\n\nSie finden das vollständige Dokument in Ihrem Kundenportal${link ? ': ' + link : ' auf unserer Website'}.\n\nMit freundlichen Grüßen\n${s.company}` });
+            NX.mailLog(c.email, `${kind} ${doc.number}`, kind, r.ok ? 'an FormSubmit übergeben' : 'Fehler');
+            msg = r.ok ? 'Gesendet: E-Mail an den Kunden und im Kundenportal bereitgestellt.' : 'Im Kundenportal bereitgestellt, aber die E-Mail ging nicht raus: ' + r.msg;
+        } else msg = 'Im Kundenportal bereitgestellt. Beim Kunden ist keine E-Mail-Adresse hinterlegt.';
+        NX.toast(msg); done && done(); return true;
+    };
     /* ---------- Angebote ---------- */
     function offerModal(o, done, pre) {
         const s = NX.db.settings, isNew = !o, d = o ? clone(o) : Object.assign({ id: NX.uid('O'), number: NX.nextNumber('A', NX.db.offers), type: 'Angebot', customerId: '', projectId: '', date: NX.today(), valid: NX.addDays(NX.today(), s.offerDays), items: [{ desc: '', qty: 1, price: 0 }], disc: 0, vat: s.vatRate, status: 'Entwurf', invoiceId: null }, pre || {});
@@ -58,15 +78,16 @@
  <div class="row"><div class="field"><label for="od">Angebotsdatum</label><input id="od" type="date" name="date" value="${d.date}"></div><div class="field"><label for="ov">Gültig bis</label><input id="ov" type="date" name="valid" value="${d.valid}"></div><div class="field"><label for="os">Status</label><select id="os" name="status">${selOpts(['Entwurf', 'Versendet', 'Angenommen', 'Abgelehnt', 'Abgelaufen'], d.status)}</select></div></div>
  <div class="row"><div class="field"><label for="odi">Rabatt (%)</label><input id="odi" type="number" min="0" max="100" step="0.1" name="disc" value="${d.disc}"></div><div class="field"><label for="ovt">USt (%)</label><input id="ovt" type="number" min="0" step="0.1" name="vat" value="${d.vat}"></div></div>
  <div id="it"></div><p class="err" id="ie"></p><div id="tt"></div>
- <div class="acts"><button class="btn" type="submit">Speichern</button>${!isNew && d.status === 'Angenommen' && !d.invoiceId ? '<button type="button" class="btn ghost" data-inv>In Rechnung umwandeln</button>' : ''}${!isNew ? '<button type="button" class="btn ghost" data-mail>E-Mail vorbereiten</button><button type="button" class="btn ghost" data-view>Dokument ansehen</button>' : ''}</div></form>`, { wide: true });
+ <div class="acts"><button class="btn" type="submit">Speichern</button>${!isNew && d.status === 'Angenommen' && !d.invoiceId ? '<button type="button" class="btn ghost" data-inv>In Rechnung umwandeln</button>' : ''}<button type="button" class="btn ghost" data-send>Senden</button>${!isNew ? '<button type="button" class="btn ghost" data-view>Dokument ansehen</button>' : ''}</div></form>`, { wide: true });
         const f = NX.$('form', m.body), tt = NX.$('#tt', m.body), upd = () => { d.disc = parseFloat(f.disc.value) || 0; d.vat = parseFloat(f.vat.value) || 0; tt.innerHTML = totalsHTML(d); };
         itemsEditor(NX.$('#it', m.body), d.items, upd);
         f.oninput = e => { if (e.target.name === 'disc' || e.target.name === 'vat')
             upd(); };
         upd();
         const take = () => { Object.assign(d, NX.fd(f)); };
+        let sendAfter = false; NX.$('[data-send]', m.body).onclick = () => { sendAfter = true; f.requestSubmit(); };
         f.onsubmit = NX.guard(async (e) => {
-            e.preventDefault();
+            e.preventDefault(); const sa = sendAfter; sendAfter = false;
             if (!NX.check(f, { customerId: ['req'], number: ['req'] }) || !itemsOk(f, d))
                 return;
             take();
@@ -84,6 +105,7 @@
             NX.log((isNew ? 'Angebot erstellt: ' : 'Angebot geändert: ') + d.number);
             NX.toast('Angebot gespeichert.');
             m.close();
+            if (sa) await B.sendDoc('offer', d);
             done && done();
         });
         const inv = NX.$('[data-inv]', m.body);
@@ -91,10 +113,9 @@
             inv.onclick = NX.guard(async () => { if (d.invoiceId)
                 return; take(); const r = { id: NX.uid('R'), number: NX.nextNumber('R', NX.db.invoices), orderNumber: NX.orderNumberFor(d.projectId), customerId: d.customerId, projectId: d.projectId, offerId: d.id, date: NX.today(), due: NX.addDays(NX.today(), s.dueDays), kind: 'Vorauszahlungsrechnung', items: clone(d.items), disc: d.disc, vat: d.vat, draft: true, payments: [], timeIds: [] }; NX.db.invoices.push(r); d.invoiceId = r.id; const i = NX.db.offers.findIndex(x => x.id === d.id); if (i >= 0)
                 NX.db.offers[i] = d; NX.log('Rechnungsentwurf aus Angebot ' + d.number + ': ' + r.number); NX.toast('Rechnungsentwurf ' + r.number + ' erstellt.'); m.close(); done && done(); });
-        const ma = NX.$('[data-mail]', m.body);
+        const ma = NX.$('[data-view]', m.body);
         if (ma) {
-            ma.onclick = () => B.emailDoc('offer', d);
-            NX.$('[data-view]', m.body).onclick = () => NX.viewDoc('offer', d);
+            ma.onclick = () => NX.viewDoc('offer', d);
         }
     }
     B.offerModal = offerModal;
@@ -102,14 +123,14 @@
         title: 'Angebote & Kostenvoranschläge', ph: 'Nummer oder Kunde suchen', status: ['Entwurf', 'Versendet', 'Angenommen', 'Abgelehnt', 'Abgelaufen'], add: '+ Neues Angebot', dates: true,
         items: () => [...NX.db.offers].sort((a, b) => b.date.localeCompare(a.date)), text: o => o.number + ' ' + NX.custName(o.customerId), stat: o => NX.offStatus(o), dateOf: o => o.date,
         head: ['Nummer', 'Art', 'Kunde', 'Datum', 'Gültig bis', 'Betrag', 'Status', ''],
-        row: o => [esc(o.number), esc(o.type), esc(NX.custName(o.customerId)), NX.date(o.date), NX.date(o.valid), NX.eur(NX.total(o)), NX.badge(NX.offStatus(o)), NX.btn('view', o.id, 'Ansehen') + NX.btn('edit', o.id, 'Bearbeiten') + NX.btn('mail', o.id, 'E-Mail')],
+        row: o => [esc(o.number), esc(o.type), esc(NX.custName(o.customerId)), NX.date(o.date), NX.date(o.valid), NX.eur(NX.total(o)), NX.badge(NX.offStatus(o)), NX.btn('view', o.id, 'Ansehen') + NX.btn('edit', o.id, 'Bearbeiten') + NX.btn('mail', o.id, 'Senden')],
         onAdd: r => offerModal(null, r),
         act: (a, id, r) => { const o = NX.db.offers.find(x => x.id === id); if (a === 'view')
             NX.viewDoc('offer', o);
         else if (a === 'edit')
             offerModal(o, r);
         else
-            B.emailDoc('offer', o); }
+            B.sendDoc('offer', o, r); }
     });
     /* ---------- Rechnungen ---------- */
     function invoiceModal(inv, done, pre) {
@@ -122,7 +143,7 @@
  <div class="field chk"><input id="rdr" type="checkbox" name="draft"${d.draft ? ' checked' : ''}><label for="rdr">Entwurf (für Kunden im Portal noch nicht sichtbar)</label></div>
  <div id="it"></div><p class="err" id="ie"></p><div id="tt"></div>
  ${isNew ? '' : `<h4 class="sub">Zahlungen</h4><div id="pl"></div><div class="row"><div class="field"><label for="pa">Zahlungseingang (€)</label><input id="pa" type="number" step="0.01" min="0"></div><div class="field"><label for="pd">Zahlungsdatum</label><input id="pd" type="date" value="${NX.today()}"></div></div><button type="button" class="btn ghost sm" data-pay>Zahlung hinzufügen</button><p class="err" id="pe"></p>`}
- <div class="acts"><button class="btn" type="submit">Speichern</button>${isNew ? '' : '<button type="button" class="btn ghost" data-mail>E-Mail vorbereiten</button><button type="button" class="btn ghost" data-view>Dokument ansehen</button>'}${!isNew && inv.draft ? '<button type="button" class="btn ghost" data-del>Entwurf löschen</button>' : ''}</div></form>`, { wide: true });
+ <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-send>Senden</button>${isNew ? '' : '<button type="button" class="btn ghost" data-view>Dokument ansehen</button>'}${!isNew && inv.draft ? '<button type="button" class="btn ghost" data-del>Entwurf löschen</button>' : ''}</div></form>`, { wide: true });
         const f = NX.$('form', m.body), tt = NX.$('#tt', m.body);
         f.projectId.addEventListener('change', () => {
             const project = NX.db.projects.find(p => p.id === f.projectId.value);
@@ -157,8 +178,9 @@
                 pl();
                 upd();
             } };
+        let sendAfter = false; NX.$('[data-send]', m.body).onclick = () => { sendAfter = true; f.requestSubmit(); };
         f.onsubmit = NX.guard(async (e) => {
-            e.preventDefault();
+            e.preventDefault(); const sa = sendAfter; sendAfter = false;
             if (!NX.check(f, { customerId: ['req'], number: ['req'] }) || !itemsOk(f, d))
                 return;
             const x = NX.fd(f);
@@ -191,10 +213,10 @@
             NX.log((isNew ? 'Rechnung erstellt: ' : 'Rechnung geändert: ') + d.number);
             NX.toast('Rechnung gespeichert.');
             m.close();
+            if (sa) await B.sendDoc('invoice', d);
             done && done();
         });
         if (!isNew) {
-            NX.$('[data-mail]', m.body).onclick = () => B.emailDoc('invoice', d);
             NX.$('[data-view]', m.body).onclick = () => NX.viewDoc('invoice', d);
             const db = NX.$('[data-del]', m.body);
             if (db)
@@ -254,14 +276,14 @@
         items: () => [...NX.db.invoices].sort((a, b) => b.date.localeCompare(a.date)), text: i => i.number + ' ' + NX.custName(i.customerId), stat: i => NX.invStatus(i), dateOf: i => i.date,
         kpis: all => { const v = all.filter(i => !i.draft); return NX.kpi(v.filter(i => NX.open(i) > 0).length, 'Offene Rechnungen') + NX.kpi(v.filter(i => NX.open(i) <= 0).length, 'Bezahlt') + NX.kpi(NX.eur(v.reduce((s, i) => s + NX.open(i), 0)), 'Offener Betrag') + NX.kpi(NX.eur(v.reduce((s, i) => s + NX.paid(i), 0)), 'Eingegangen'); },
         head: ['Nummer', 'Kunde', 'Datum', 'Fällig', 'Brutto', 'Bezahlt', 'Offen', 'Status', ''],
-        row: i => [esc(i.number), esc(NX.custName(i.customerId)), NX.date(i.date), NX.date(i.due), NX.eur(NX.total(i)), NX.eur(NX.paid(i)), NX.eur(NX.open(i)), NX.badge(NX.invStatus(i)), NX.btn('view', i.id, 'Ansehen') + NX.btn('edit', i.id, 'Bearbeiten') + NX.btn('mail', i.id, 'E-Mail')],
+        row: i => [esc(i.number), esc(NX.custName(i.customerId)), NX.date(i.date), NX.date(i.due), NX.eur(NX.total(i)), NX.eur(NX.paid(i)), NX.eur(NX.open(i)), NX.badge(NX.invStatus(i)), NX.btn('view', i.id, 'Ansehen') + NX.btn('edit', i.id, 'Bearbeiten') + NX.btn('mail', i.id, 'Senden')],
         onAdd: r => invoiceModal(null, r),
         act: (a, id, r) => { const i = NX.db.invoices.find(x => x.id === id); if (a === 'view')
             NX.viewDoc('invoice', i);
         else if (a === 'edit')
             invoiceModal(i, r);
         else
-            B.emailDoc('invoice', i); }
+            B.sendDoc('invoice', i, r); }
     });
     /* ---------- Erinnerungen / Mahnungen ---------- */
     B.makeReminder = (invId, type, feeOverride) => {
@@ -287,7 +309,7 @@
             const op = NX.db.invoices.filter(i => !i.draft && NX.open(i) > 0);
             NX.$('#a', el).innerHTML = op.length ? NX.table(['Rechnung', 'Kunde', 'Fällig', 'Status', 'Offen', 'Erstellen'], op.map(i => ({ id: i.id, cells: [esc(i.number), esc(NX.custName(i.customerId)), NX.date(i.due), NX.badge(NX.invStatus(i)), NX.eur(NX.open(i)), NX.btn('Zahlungserinnerung', i.id, 'Erinnerung') + NX.btn('1. Mahnung', i.id, '1. Mahnung') + NX.btn('2. Mahnung', i.id, '2. Mahnung')] }))) : '<div class="tw"><p class="empty">Keine offenen Rechnungen.</p></div>';
             const rs = [...NX.db.reminders].sort((a, b) => b.date.localeCompare(a.date));
-            NX.$('#b', el).innerHTML = rs.length ? NX.table(['Nummer', 'Art', 'Rechnung', 'Kunde', 'Datum', 'Zahlbar bis', 'Gebühr', ''], rs.map(r => { const i = NX.db.invoices.find(x => x.id === r.invoiceId) || {}; return { id: r.id, cells: [esc(r.number), NX.badge(r.type), esc(i.number || '–'), esc(NX.custName(r.customerId)), NX.date(r.date), NX.date(r.due), NX.eur(r.fee), NX.btn('view', r.id, 'Ansehen') + NX.btn('mail', r.id, 'E-Mail')] }; })) : '<div class="tw"><p class="empty">Noch keine Dokumente erstellt.</p></div>';
+            NX.$('#b', el).innerHTML = rs.length ? NX.table(['Nummer', 'Art', 'Rechnung', 'Kunde', 'Datum', 'Zahlbar bis', 'Gebühr', ''], rs.map(r => { const i = NX.db.invoices.find(x => x.id === r.invoiceId) || {}; return { id: r.id, cells: [esc(r.number), NX.badge(r.type), esc(i.number || '–'), esc(NX.custName(r.customerId)), NX.date(r.date), NX.date(r.due), NX.eur(r.fee), NX.btn('view', r.id, 'Ansehen') + NX.btn('mail', r.id, 'Senden')] }; })) : '<div class="tw"><p class="empty">Noch keine Dokumente erstellt.</p></div>';
         };
         el.onclick = e => {
             const b = e.target.closest('[data-act]');
@@ -296,7 +318,7 @@
             const a = b.dataset.act, id = b.dataset.id;
             if (a === 'view' || a === 'mail') {
                 const r = NX.db.reminders.find(x => x.id === id);
-                a === 'view' ? NX.viewDoc('reminder', r) : B.emailDoc('reminder', r);
+                if (a === 'view') NX.viewDoc('reminder', r); else B.sendDoc('reminder', r, () => NX.refresh && NX.refresh());
             }
             else {
                 const invoice = NX.db.invoices.find(i => i.id === id);

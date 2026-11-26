@@ -116,11 +116,11 @@ function employeeView(db, s) {
   if (perms.some(p => p !== 'einstellungen')) ro.add('customers');
   ro.forEach(k => { if (db[k] !== undefined) v[k] = clone(db[k]); });
   v.customers = (v.customers || []).map(c => { const x = Object.assign({}, c); delete x.pwHash; return x; });
-  v.auth = { user: s.uid, name: s.name || '', hash: s.ph || '', role: 'employee', perms };
+  v.auth = { user: s.uid, name: s.name || '', hash: s.ph || '', role: 'employee', perms, publicUrl: PUBLIC_URL };
   return v;
 }
 async function viewFor(s, db) {
-  if (s.role === 'admin') { const v = clone(db); v.auth = { user: s.uid, name: s.name || '', hash: s.ph || '', role: 'admin' }; return v; }
+  if (s.role === 'admin') { const v = clone(db); v.auth = { user: s.uid, name: s.name || '', hash: s.ph || '', role: 'admin', publicUrl: PUBLIC_URL }; return v; }
   if (s.role === 'employee') return employeeView(db, s);
   if (s.role === 'customer') { const v = customerView(db, s.uid); if (v.customers[0]) v.customers[0].pwHash = s.ph || ''; return v; }
   return publicView(db);
