@@ -288,3 +288,9 @@
 
 ## Nachtrag 35 – Test- und Demo-Inhalte entfernt
 - Entfernt: Ordner `tests/` (inkl. Beispieldaten), Testberichte, Screenshots, Demo-Bankbewegungen und Demo-Schaltflächen in der Buchhaltung, Schaltflächen „Demo-Daten zurücksetzen“, Seeding-Hook für Testdaten, Hinweis „Lokale Vorschau (Demo-Daten)“ in der Fußzeile. Frühere Nachträge nennen die Tests noch als Verlauf.
+
+## Nachtrag 36 – Kontoauszug-Import (CSV, Excel, PDF)
+- Buchhaltung → „Bank & Zahlungsabgleich“: Knopf „Kontoauszug importieren“. Unterstützt CSV (Trennzeichen und Zeichensatz automatisch), Excel `.xlsx` und PDF (mit Text). Die Datei wird nur im Browser gelesen.
+- Spalten werden an den Überschriften erkannt (Datum, Betrag oder Soll/Haben, Text, Name); sonst Zuordnung per Auswahl. PDF: Zeilen mit Datum und Betrag; Option „letzte/vorletzte Zahl“ (Saldo). Vorschau mit Auswahl und Einnahme/Ausgabe je Zeile; doppelte Buchungen werden erkannt.
+- Zahlungen mit Rechnungsnummer (R-JJJJ-NNNN) im Text werden automatisch der Rechnung zugeordnet, sofern der Betrag zum offenen Betrag passt.
+- Mitgelieferte Bibliotheken (`assets/vendor/`): pdf.js (Apache-2.0) und JSZip (MIT). Entfernt: „Synchronisierung testen“.

@@ -304,8 +304,8 @@ async function api(req, res, url) {
 }
 
 /* ---------- Statische Dateien ---------- */
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };
-const ADMIN_ONLY_JS = /^\/assets\/js\/(admin|admin-extras|billing|finance|time|bookkeeping)\.js$/;
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.woff2': 'font/woff2' };
+const ADMIN_ONLY_JS = /^\/assets\/js\/(admin|admin-extras|billing|finance|time|bookkeeping|bank-import)\.js$/;
 function serve(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (MODE === 'public' && (rel === '/admin' || rel.startsWith('/admin/') || ADMIN_ONLY_JS.test(rel))) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Nicht gefunden'); }
