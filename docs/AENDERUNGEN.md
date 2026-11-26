@@ -337,3 +337,8 @@
 - Header: links nur das Logo, in der Mitte die Suche, rechts Live, Glocke und der Kreis mit den Initialen. „Abmelden“ steht jetzt im Profil-Fenster.
 - Fehlerbehebung: Nach hartem Neuladen fehlte teils die Live-Anzeige (Profil-Button saß in der Mitte); sie wird nun zuverlässig eingehängt.
 - Fehlerbehebung: Nach Verkleinern und Vergrößern des Fensters landete die Suche vor dem Logo; die Reihenfolge bleibt jetzt immer gleich.
+
+## Nachtrag 45 – „Senden“ statt „E-Mail“
+- Angebote, Kostenvoranschläge, Rechnungen, Erinnerungen und Mahnungen haben statt „E-Mail“ den Knopf **Senden** (Listen, Dokument-Dialoge und Projekt-Dialog). Im Dialog speichert er zuerst.
+- Senden gibt das Dokument im Kundenportal frei (Angebot „Entwurf“ → „Versendet“, Rechnung kein Entwurf mehr) und verschickt die E-Mail direkt an die Adresse des Kunden, ohne Vorschau. Die Mail enthält die wichtigsten Angaben und den Link zum Kundenportal.
+- Der Versand läuft über FormSubmit (wie bisher); hat der Kunde keine E-Mail-Adresse, wird nur im Portal freigegeben. Der Server liefert dem Admin dafür die öffentliche Adresse (`auth.publicUrl`).
