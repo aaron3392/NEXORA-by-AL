@@ -48,6 +48,7 @@
         const sd = root.querySelector('.side'); if (!sd) return;
         const old = sd.querySelector(':scope > .nx-pg-side'); if (old) old.remove();
         const items = [...sd.children]; items.forEach(i => i.classList.remove('nx-pg-h'));
+        return; /* Seitenmenü scrollt jetzt, keine Seiten mehr */
         if (!wide()) return;
         const cs = getComputedStyle(sd), room = sd.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom), h = i => i.offsetHeight + parseFloat(getComputedStyle(i).marginTop) + parseFloat(getComputedStyle(i).marginBottom);
         if (items.reduce((s, i) => s + h(i), 0) <= room) return;
