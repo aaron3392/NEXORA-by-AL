@@ -2916,3 +2916,8 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 .nx-me:hover, .nx-me:focus-visible { box-shadow: 0 0 0 3px rgba(196, 92, 255, .35); }
 .nx-me-big { width: 64px; height: 64px; margin: 0 0 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 700 1.4rem/1 inherit; color: #fff; background: linear-gradient(135deg, #8b3fe1, #c45cff); }
 @media (max-width: 640px) { .nx-me { width: 34px; height: 34px; margin-right: 6px; } }
+
+/* Kopfleiste enger */
+.admin-app .hb .nx-live-box { gap: 6px; margin-right: 6px; }
+.admin-app .hb .nx-me { margin-right: 6px; }
+@media (max-width: 640px) { .admin-app .hb .nx-live-box, .admin-app .hb .nx-me { margin-right: 4px; } }
