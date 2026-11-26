@@ -29,7 +29,7 @@
         const detailRows = Object.entries(i.projectDetails || {}).map(([k,v]) => `<dt>${esc(k.replace(/_/g, ' '))}</dt><dd>${esc(Array.isArray(v) ? v.join(', ') : v || '–')}</dd>`).join('');
         const m = NX.modal('Anfrage ' + i.id, `<h3>Kontaktdaten und Projekt</h3><dl class="dl"><dt>Datum</dt><dd>${NX.date(i.date)}</dd><dt>Name</dt><dd>${nm(i)}</dd><dt>E-Mail</dt><dd>${esc(i.email)}</dd><dt>Telefon</dt><dd>${esc(i.phone || '–')}</dd>${i.company ? `<dt>Firma</dt><dd>${esc(i.company)}${i.vatId ? ' · UID ' + esc(i.vatId) : ''}</dd>` : ''}${i.street ? `<dt>Rechnungsadresse</dt><dd>${esc(i.street)} ${esc(i.no || '')}, ${esc(i.zip || '')} ${esc(i.city || '')}, ${esc(i.country || '')}</dd>` : ''}${i.contactPref ? `<dt>Bevorzugter Kontakt</dt><dd>${esc(i.contactPref)}</dd>` : ''}<dt>Betreff</dt><dd>${esc(i.subject)}</dd><dt>Leistung</dt><dd>${esc(i.service || '–')}</dd><dt>Projektbeschreibung</dt><dd>${esc(i.message)}</dd>${detailRows}<dt>Budget / Zeitrahmen</dt><dd>${esc(i.budget || '–')} / ${esc(i.timeframe || '–')}</dd>${i.wishDate ? `<dt>Wunschtermin</dt><dd>${NX.date(i.wishDate)}</dd>` : ''}</dl><h3>Zahlung, Paket und Hosting</h3><dl class="dl"><dt>Zahlungsmodell</dt><dd>${esc(i.paymentModel || 'Nicht angegeben')}</dd><dt>Monatliches Paket</dt><dd>${esc(i.monthlyPackage || '–')}</dd><dt>Monatspreis</dt><dd>${esc(i.monthlyPrice || '–')}</dd><dt>Paketleistungen</dt><dd>${esc(i.packageDescription || '–')}</dd><dt>Enthaltener Support</dt><dd>${esc(i.packageSupport || '–')}</dd><dt>Hosting</dt><dd>${esc(i.hostingModel === 'eigen' ? 'Eigenes Hosting' : i.hostingModel === 'nexora' ? 'NEXORA Hosting' : '–')}</dd><dt>Hosting-Details</dt><dd>${esc(i.hostingNotes || '–')}</dd><dt>Zusatzinformationen</dt><dd>${esc(i.notes || '–')}</dd><dt>Quelle</dt><dd>${esc(i.source)}</dd></dl>
  <form novalidate><div class="field"><label for="is">Status</label><select id="is" name="status">${sel(IST, i.status)}</select></div><div class="field"><label for="in">Interne Notizen</label><textarea id="in" name="notes">${esc(i.notes)}</textarea></div>
- <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-ar>Archivieren</button><button type="button" class="btn ghost" data-pr${i.projectId ? ' disabled' : ''}>${i.projectId ? 'Bereits übernommen' : 'In Projekt übernehmen'}</button><button type="button" class="btn ghost" data-ml>Antwort vorbereiten</button></div></form>`);
+ <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-ar>Archivieren</button><button type="button" class="btn ghost" data-pr${i.projectId ? ' disabled' : ''}>${i.projectId ? 'Bereits angenommen' : 'Annehmen und Projekt anlegen'}</button><button type="button" class="btn ghost" data-ml>Antwort vorbereiten</button></div></form>`);
         if (NX.attachments) NX.attachments(m.body, { owner: 'inquiry:' + i.id, title: 'Dateien zur Anfrage', note: 'Intern – der Kunde sieht diese Dateien nicht.' });
         const f = NX.$('form', m.body);
         f.onsubmit = e => { e.preventDefault(); Object.assign(i, NX.fd(f)); NX.log('Anfrage aktualisiert: ' + i.id); NX.toast('Anfrage gespeichert.'); m.close(); done(); };
@@ -57,14 +57,16 @@
             i.projectId = p.id;
             i.status = 'Angenommen';
             NX.log('Anfrage ' + i.id + ' in Projekt ' + p.id + ' übernommen');
-            NX.toast('Projekt ' + p.id + ' angelegt, Kontaktdaten übernommen.');
+            NX.toast('Anfrage angenommen – Projekt ' + p.id + ' angelegt.');
             m.close();
             done();
+            location.hash = 'projekte';   /* Weiter im Projekt: Kostenvoranschlag, Angebot, Rechnung */
+            setTimeout(() => projectModal(p.id, () => NX.refresh && NX.refresh()), 350);
         });
     }
     function anfragen(el) {
         NX.listView(el, {
-            title: 'Anfragen', ph: 'Name, E-Mail oder Betreff suchen', status: IST, items: () => [...NX.db.inquiries].sort((a, b) => b.date.localeCompare(a.date)), text: i => `${i.first} ${i.last} ${i.email} ${i.subject}`, stat: i => i.status,
+            title: 'Anfragen', ph: 'Name, E-Mail oder Betreff suchen', status: IST, items: () => NX.db.inquiries.filter(i => !i.projectId).sort((a, b) => b.date.localeCompare(a.date)), text: i => `${i.first} ${i.last} ${i.email} ${i.subject}`, stat: i => i.status,
             head: ['Datum', 'Name', 'E-Mail', 'Betreff', 'Quelle', 'Status'], row: i => [NX.date(i.date), nm(i), esc(i.email), esc(i.subject), esc(i.source), NX.badge(i.status)], onRow: (id, r) => inquiryModal(id, r)
         });
         const s = document.createElement('div');
@@ -93,6 +95,21 @@
  <div class="field"><label for="pno">Interne Notizen</label><textarea id="pno" name="notes">${esc(p.notes)}</textarea></div>
  ${isNew ? '' : `<p class="mut">Angebote: ${D.offers.filter(o => o.projectId === p.id).map(o => esc(o.number)).join(', ') || '–'}<br>Rechnungen: ${D.invoices.filter(o => o.projectId === p.id).map(o => esc(o.number)).join(', ') || '–'}</p>`}
  <div class="acts"><button class="btn" type="submit">Speichern</button>${!isNew && p.paymentModel === 'monatlich' && !(D.subscriptions || []).some(x => x.projectId === p.id) ? '<button type="button" class="btn ghost" data-subscription>Monatsvertrag anlegen</button>' : ''}${!isNew && p.status !== 'Abgeschlossen' ? '<button type="button" class="btn ghost" data-fin>Projekt abschließen</button>' : ''}</div></form>`);
+        if (!isNew && NX.bill) {   /* Dokumente zum Projekt: Kostenvoranschlag, Angebot, Rechnung erstellen, ansehen, bearbeiten, senden */
+            const box = document.createElement('section'); box.className = 'nx-pdocs'; m.body.appendChild(box);
+            const draw = () => {
+                const rows = [...D.offers.filter(o => o.projectId === p.id).map(o => ({ t: 'offer', d: o, kind: o.type || 'Angebot', st: NX.offStatus(o) })), ...D.invoices.filter(r => r.projectId === p.id).map(r => ({ t: 'invoice', d: r, kind: r.kind || 'Rechnung', st: NX.invStatus(r) }))].sort((x, y) => String(y.d.date).localeCompare(String(x.d.date)));
+                box.innerHTML = '<h3>Dokumente zum Projekt</h3><div class="acts"><button type="button" class="btn sm" data-new="kv">+ Kostenvoranschlag</button><button type="button" class="btn sm" data-new="offer">+ Angebot</button><button type="button" class="btn sm" data-new="invoice">+ Rechnung</button></div>'
+                    + (rows.length ? '<ul class="nx-att-list">' + rows.map((r, k) => `<li><span><strong>${esc(r.kind)} ${esc(r.d.number)}</strong> <small class="mut">${NX.date(r.d.date)} · ${NX.eur(NX.total(r.d))}</small> ${NX.badge(r.st)}</span><span class="nx-att-act"><button type="button" class="btn ghost sm" data-a="view" data-k="${k}">Ansehen</button><button type="button" class="btn ghost sm" data-a="edit" data-k="${k}">Bearbeiten</button><button type="button" class="btn ghost sm" data-a="mail" data-k="${k}">Per E-Mail senden</button></span></li>`).join('') + '</ul>' : '<p class="mut">Noch keine Dokumente. Lege oben einen Kostenvoranschlag, ein Angebot oder eine Rechnung für dieses Projekt an.</p>');
+                box._rows = rows;
+            };
+            draw();
+            box.onclick = e => {
+                const n = e.target.closest('[data-new]'), a = e.target.closest('[data-a]'), pre = { customerId: p.customerId, projectId: p.id };
+                if (n) { if (n.dataset.new === 'invoice') NX.bill.invoiceModal(null, draw, pre); else NX.bill.offerModal(null, draw, Object.assign(pre, { type: n.dataset.new === 'kv' ? 'Kostenvoranschlag' : 'Angebot' })); }
+                else if (a) { const r = box._rows[+a.dataset.k]; if (a.dataset.a === 'view') NX.viewDoc(r.t, r.d); else if (a.dataset.a === 'edit') (r.t === 'offer' ? NX.bill.offerModal(r.d, draw) : NX.bill.invoiceModal(r.d, draw)); else NX.bill.emailDoc(r.t, r.d); }
+            };
+        }
         if (!isNew && NX.attachments) NX.attachments(m.body, { owner: 'project:' + p.id, also: p.inquiryId ? ['inquiry:' + p.inquiryId] : [], title: 'Dateien zum Projekt', note: 'Dateien dieses Projekts sieht auch der Kunde im Portal. Dateien der ursprünglichen Anfrage bleiben intern.' });
         const f = NX.$('form', m.body);
         f.onsubmit = NX.guard(async (e) => {

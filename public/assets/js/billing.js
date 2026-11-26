@@ -50,8 +50,8 @@
         NX.mailPreview({ kind, to: c.email || '', subject: `${kind} ${d.number} – ${s.company}`, message: `Guten Tag ${c.first || ''} ${c.last || ''},\n\nzu Ihrem Dokument „${kind} ${d.number}“ finden Sie nachfolgend die wichtigsten Angaben.${extra}\n\nBitte verwenden Sie das separat bereitgestellte Dokument für die vollständigen Rechnungs- bzw. Angebotsdetails.\n\nMit freundlichen Grüßen\n${s.company}` });
     };
     /* ---------- Angebote ---------- */
-    function offerModal(o, done) {
-        const s = NX.db.settings, isNew = !o, d = o ? clone(o) : { id: NX.uid('O'), number: NX.nextNumber('A', NX.db.offers), type: 'Angebot', customerId: '', projectId: '', date: NX.today(), valid: NX.addDays(NX.today(), s.offerDays), items: [{ desc: '', qty: 1, price: 0 }], disc: 0, vat: s.vatRate, status: 'Entwurf', invoiceId: null };
+    function offerModal(o, done, pre) {
+        const s = NX.db.settings, isNew = !o, d = o ? clone(o) : Object.assign({ id: NX.uid('O'), number: NX.nextNumber('A', NX.db.offers), type: 'Angebot', customerId: '', projectId: '', date: NX.today(), valid: NX.addDays(NX.today(), s.offerDays), items: [{ desc: '', qty: 1, price: 0 }], disc: 0, vat: s.vatRate, status: 'Entwurf', invoiceId: null }, pre || {});
         const m = NX.modal(isNew ? 'Neues Angebot' : 'Angebot ' + d.number, `<form novalidate>
  <div class="row"><div class="field"><label for="on">Nummer</label><input id="on" name="number" value="${esc(d.number)}"></div><div class="field"><label for="ot">Art</label><select id="ot" name="type">${selOpts(['Angebot', 'Kostenvoranschlag'], d.type)}</select></div></div>
  <div class="row"><div class="field"><label for="oc">Kunde <span class="req">*</span></label><select id="oc" name="customerId"><option value="">– wählen –</option>${opts(NX.db.customers, d.customerId, c => c.first + ' ' + c.last)}</select></div><div class="field"><label for="op">Projekt</label><select id="op" name="projectId"><option value="">– keines –</option>${opts(NX.db.projects, d.projectId, p => p.name)}</select></div></div>
@@ -112,8 +112,8 @@
             B.emailDoc('offer', o); }
     });
     /* ---------- Rechnungen ---------- */
-    function invoiceModal(inv, done) {
-        const s = NX.db.settings, isNew = !inv, d = inv ? clone(inv) : { id: NX.uid('R'), number: NX.nextNumber('R', NX.db.invoices), orderNumber: '', customerId: '', projectId: '', offerId: '', date: NX.today(), due: NX.addDays(NX.today(), s.dueDays), kind: 'Schlussrechnung', items: invoiceItemDefaults(), disc: 0, vat: s.vatRate, draft: true, payments: [], timeIds: [] };
+    function invoiceModal(inv, done, pre) {
+        const s = NX.db.settings, isNew = !inv, d = inv ? clone(inv) : Object.assign({ id: NX.uid('R'), number: NX.nextNumber('R', NX.db.invoices), orderNumber: '', customerId: '', projectId: '', offerId: '', date: NX.today(), due: NX.addDays(NX.today(), s.dueDays), kind: 'Schlussrechnung', items: invoiceItemDefaults(), disc: 0, vat: s.vatRate, draft: true, payments: [], timeIds: [] }, pre || {});
         d.orderNumber = d.orderNumber || NX.orderNumberFor(d.projectId);
         const m = NX.modal(isNew ? 'Neue Rechnung' : 'Rechnung ' + d.number, `<form novalidate>
  <div class="row"><div class="field"><label for="rn">Rechnungsnummer <span class="req">*</span></label><input id="rn" name="number" value="${esc(d.number)}"></div><div class="field"><label for="ron">Auftragsnummer <span class="req">*</span></label><input id="ron" name="orderNumber" value="${esc(d.orderNumber)}"><small class="mut">Wird bei Rechnungen desselben Projekts gemeinsam verwendet.</small></div><div class="field"><label for="rk">Art</label><select id="rk" name="kind">${selOpts(['Vorauszahlungsrechnung', 'Schlussrechnung'], d.kind)}</select></div></div>

@@ -2921,3 +2921,11 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 .admin-app .hb .nx-live-box { gap: 6px; margin-right: 6px; }
 .admin-app .hb .nx-me { margin-right: 6px; }
 @media (max-width: 640px) { .admin-app .hb .nx-live-box, .admin-app .hb .nx-me { margin-right: 4px; } }
+
+/* Handy: geöffnetes Menü ist undurchsichtig (kein Durchscheinen des Hintergrunds) */
+@media (max-width: 900px) {
+  .admin-app .side { background: linear-gradient(180deg, #170e29, #0b0714) !important; }
+}
+
+.nx-pdocs { margin-top:18px; padding-top:14px; border-top:1px solid var(--bd); }
+.nx-pdocs .acts { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
