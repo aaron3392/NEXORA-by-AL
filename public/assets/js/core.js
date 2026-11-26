@@ -33,7 +33,7 @@
             const r = JSON.parse(x.responseText); if (!r || r.api !== 'nexora') return;
             BE.on = true; BE.role = r.role; BE.rev = r.rev || 0; BE.empty = !!r.empty; BE.needsSetup = !!r.needsSetup;
             if (r.empty) { try { localStorage.removeItem(KEY); } catch (e) { } } else { rawSet.call(localStorage, KEY, JSON.stringify(r.db)); Object.keys(r.kv || {}).forEach(k => rawSet.call(localStorage, k, JSON.stringify(r.kv[k]))); }
-            try { if (r.role !== 'admin') ['admin', 'finance', 'time'].forEach(s => localStorage.removeItem('nx_sess_' + s)); if (r.role !== 'customer') localStorage.removeItem('nx_sess_customer'); } catch (e) { }
+            try { if (r.role !== 'admin' && r.role !== 'employee') ['admin', 'finance', 'time'].forEach(s => localStorage.removeItem('nx_sess_' + s)); if (r.role !== 'customer') localStorage.removeItem('nx_sess_customer'); } catch (e) { }
         } catch (e) { BE.on = false; }
     })();
     if (BE.on) {
@@ -142,27 +142,6 @@
             if (window.addEventListener) { window.addEventListener('focus', check); window.addEventListener('pageshow', check); }
         } catch (e) { /* ohne Browser-Umgebung nicht nötig */ }
         return check;
-    })();
-    /* ---------- Nach-oben-Button (alle Seiten, alle Geräte): erscheint erst nach dem Hinunterscrollen ---------- */
-    (() => {
-        if (typeof document === 'undefined' || !document.createElement || typeof window === 'undefined' || !window.addEventListener) return;
-        const init = () => {
-            if (document.querySelector('.nx-ax-top')) return;
-            const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            const up = document.createElement('button');
-            up.type = 'button'; up.className = 'nx-ax-top'; up.setAttribute('aria-label', 'Nach oben'); up.title = 'Nach oben'; up.tabIndex = -1;
-            up.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
-            up.onclick = () => { window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }); };
-            document.body.appendChild(up);
-            const upd = () => {
-                const y = window.pageYOffset || document.documentElement.scrollTop || 0, on = y > 300;
-                up.classList.toggle('on', on); up.tabIndex = on ? 0 : -1;
-                const bar = document.querySelector('.nx-sticky.on');   /* mobile CTA-Leiste der Startseite nicht verdecken */
-                up.style.bottom = bar ? (bar.offsetHeight + 24) + 'px' : '';
-            };
-            window.addEventListener('scroll', upd, { passive: true }); window.addEventListener('resize', upd); upd();
-        };
-        if (document.body) init(); else document.addEventListener('DOMContentLoaded', init, { once: true });
     })();
     NX.addDays = (d, n) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + n); return iso(x); };
     NX.eur = c => ((c || 0) / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
@@ -482,6 +461,8 @@
     NX.shell = o => {
         const root = NX.$('#root'), hdr = NX.$('#hdr'), b = document.body.dataset.base || '../';
         let adminBridge = false;
+        /* Nur freigegebene Bereiche: o.allow(id) entscheidet (Mitarbeiter mit eingeschränkten Rechten); leere Gruppen entfallen */
+        const navList = () => !o.allow ? o.nav : o.nav.map(n => Array.isArray(n) ? (o.allow(n[0]) ? n : null) : (n.children.filter(c => o.allow(c[0])).length ? Object.assign({}, n, { children: n.children.filter(c => o.allow(c[0])) }) : null)).filter(Boolean);
         const head = out => { hdr.innerHTML = `<div class="wrap hb"><a class="logo logo-image logo-symbol admin-symbol" href="${b}admin/index.html#dashboard" aria-label="NEXORA by AL – zum Dashboard" title="Zum Dashboard"><img src="${b}assets/images/nexora-symbol.png" alt="NEXORA"></a><span class="htitle">${o.title}</span>${out ? `<button type="button" class="btn ghost sm" id="lo">${adminBridge ? 'Zur Administration' : 'Abmelden'}</button>` : '<span></span>'}</div>`; const l = NX.$('#lo'); if (l)
             l.onclick = () => { if (adminBridge) { location.href = '../admin/index.html'; return; } NX.sess.clear(o.role); location.hash = ''; login(); }; };
         const foot = () => { NX.$('#ftr').innerHTML = `<div class="wrap"><div><a href="${b}index.html">Website</a><a href="${b}impressum.html">Impressum</a><a href="${b}datenschutz.html">Datenschutz</a></div><div></div></div>`; };
@@ -515,12 +496,12 @@
         function app() {
             head(true);
             if (!NX.extrasLoaded && !NX.extrasRequested) { NX.extrasRequested = true; const sc = document.createElement('script'); sc.src = b + 'assets/js/admin-extras.js'; document.head.appendChild(sc); }
-            const navHtml = o.nav.map(n => Array.isArray(n)
+            const nav = navList(), navHtml = nav.map(n => Array.isArray(n)
                 ? `<button type="button" class="side-link" data-v="${n[0]}">${n[1]}</button>`
                 : `<div class="side-group" data-group="${n.id}"><button type="button" class="side-link side-group-toggle" data-toggle="${n.id}" aria-expanded="false"><span>${n.label}</span><span class="side-chevron" aria-hidden="true">⌄</span></button><div class="side-submenu" hidden>${n.children.map(c => `<button type="button" class="side-link side-sub-link" data-v="${c[0]}">${c[1]}</button>`).join('')}</div></div>`).join('');
             root.innerHTML = `<div class="shell"><nav class="side" aria-label="Bereichsnavigation">${navHtml}</nav><section class="cnt" id="cnt"></section></div>`;
             const go = () => {
-                const h = location.hash.slice(1), fallback = o.nav.find(n => Array.isArray(n))?.[0] || o.nav[0].children?.[0]?.[0], id = o.views[h] ? h : fallback;
+                const h = location.hash.slice(1), fallback = nav.find(n => Array.isArray(n))?.[0] || nav[0].children?.[0]?.[0], id = o.views[h] && (!o.allow || o.allow(h)) ? h : fallback;
                 NX.$$('.side [data-v]').forEach(x => x.classList.toggle('on', x.dataset.v === id));
                 NX.$$('.side-group').forEach(group => {
                     const active = !!group.querySelector(`[data-v="${id}"]`), sub = group.querySelector('.side-submenu'), toggle = group.querySelector('[data-toggle]');

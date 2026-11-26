@@ -126,7 +126,7 @@
         out._w = which; return out;
     }
     /* ---------- Oberfläche ---------- */
-    function open(done) {
+    function statementFlow(done, startFile, wrapModal) {
         const bk = NX.bookkeeping, m = NX.modal('Kontoauszug importieren', `<p class="mut">CSV, Excel (.xlsx) oder PDF. Die Datei wird nur in deinem Browser gelesen. Du prüfst die erkannten Buchungen, bevor sie übernommen werden.</p>
 <div class="field"><label for="bi-f">Datei</label><input id="bi-f" type="file" accept=".csv,.txt,.xlsx,.pdf"></div><div id="bi-o"></div>`, { wide: true });
         const out = m.querySelector('#bi-o'), file = m.querySelector('#bi-f'); let src = null;
@@ -154,8 +154,8 @@
                 preview(rowsFromGrid(grid, 0, mp));
             };
         }
-        file.onchange = async () => {
-            const f = file.files[0]; if (!f) return; out.innerHTML = '<p class="mut">Datei wird gelesen …</p>';
+        const handle = async f => {
+            if (!f) return; out.innerHTML = '<p class="mut">Datei wird gelesen …</p>';
             try {
                 const ext = (f.name.split('.').pop() || '').toLowerCase(), buf = await f.arrayBuffer();
                 if (ext === 'xls') return err('Das alte Excel-Format (.xls) wird nicht unterstützt. Bitte als .xlsx oder CSV speichern.');
@@ -169,6 +169,96 @@
                 const d = detect(grid); if (d) preview(rowsFromGrid(grid, d.header, d.map)); else mapping(grid);
             } catch (e) { err('Die Datei konnte nicht gelesen werden: ' + (e.message || e)); }
         };
+        file.onchange = () => handle(file.files[0]);
+        if (startFile) { m.querySelector('.field').hidden = true; handle(startFile); }
     }
-    NX.bankImport = { open, parseDate, parseAmount, parseCSV, rowsFromGrid, detect, rowsFromPdf };
+
+    /* ---------- Auswahl: Kontoauszug oder Beleg, PDF oder Foto ---------- */
+    const isMobile = () => { const ua = navigator.userAgent || ''; return !!(navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPod|iPad|Mobile/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1); };
+    function resizeImage(file, max) {
+        return new Promise((ok, no) => {
+            const img = new Image(), u = URL.createObjectURL(file);
+            img.onload = () => { const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', .82)); };
+            img.onerror = () => { URL.revokeObjectURL(u); no(new Error('Das Foto konnte nicht gelesen werden.')); }; img.src = u;
+        });
+    }
+    function pick(accept, capture) { return new Promise(res => { const i = document.createElement('input'); i.type = 'file'; i.accept = accept; if (capture) i.setAttribute('capture', capture); i.style.display = 'none'; document.body.appendChild(i); i.onchange = () => { const f = i.files[0]; i.remove(); res(f || null); }; i.addEventListener('cancel', () => { i.remove(); res(null); }); i.click(); }); }
+    const CATS = [[/adobe|creative cloud/i, 'Adobe und Creative Tools'], [/hosting|hetzner|server|strato|ionos/i, 'Hosting'], [/domain/i, 'Domains'], [/telekom|a1 |magenta|drei|internet|mobilfunk|telefon/i, 'Telefon und Internet'], [/versicherung/i, 'Versicherungen'], [/steuerberat/i, 'Steuerberatung'], [/google ads|facebook|meta ads|werbung/i, 'Werbung und Marketing'], [/software|lizenz|subscription|abo/i, 'Software']];
+    function guessInvoice(lines) {
+        const all = lines.join('\n'), g = { vendor: '', number: '', date: '', gross: '', vat: 20, category: '' };
+        g.vendor = (lines.find(l => l.length > 2 && !/^(rechnung|invoice|seite|datum|\d)/i.test(l)) || '').slice(0, 80);
+        const num = all.match(/(?:rechnungs?-?\s?(?:nr|nummer)|invoice\s?(?:no|number|#)|beleg-?\s?nr|re-?nr)\.?\s*[:#]?\s*([A-Z0-9][A-Z0-9\-\/_.]{2,})/i); if (num) g.number = num[1].replace(/[.,]$/, '');
+        const dl = lines.find(l => /(rechnungsdatum|datum|date)/i.test(l) && parseDate((l.match(/\d{1,2}\.\d{1,2}\.\d{2,4}|\d{4}-\d{2}-\d{2}/) || [])[0])); g.date = dl ? parseDate(dl.match(/\d{1,2}\.\d{1,2}\.\d{2,4}|\d{4}-\d{2}-\d{2}/)[0]) : parseDate((all.match(/\d{1,2}\.\d{1,2}\.\d{4}|\d{4}-\d{2}-\d{2}/) || [])[0]) || '';
+        const amt = l => [...l.matchAll(/(\d{1,3}(?:\.\d{3})*,\d{2}|\d+\.\d{2})(?!\d)/g)].map(m => parseAmount(m[1])).filter(n => !isNaN(n));
+        const keyed = lines.filter(l => /(gesamt|summe|total|brutto|zu zahlen|endbetrag|rechnungsbetrag|amount due|zahlbetrag)/i.test(l) && !/netto|net\b|ust|mwst/i.test(l.replace(/brutto/i, ''))).flatMap(amt);
+        const best = keyed.length ? keyed[keyed.length - 1] : Math.max(0, ...lines.flatMap(amt)); if (best > 0) g.gross = (best / 100).toFixed(2);
+        const v = all.match(/(\d{1,2}(?:,\d)?)\s?%\s?(?:ust|mwst|umsatzsteuer)|(?:ust|mwst|umsatzsteuer)[^\d]{0,12}(\d{1,2})\s?%/i); if (v) { const r = parseFloat((v[1] || v[2]).replace(',', '.')); if ([0, 10, 13, 20].includes(r)) g.vat = r; }
+        const c = CATS.find(x => x[0].test(all)); if (c) g.category = c[1];
+        return g;
+    }
+    function receiptForm(g, file, done) {
+        const bk = NX.bookkeeping, cats = bk.categories(), isImg = /^data:image/.test(file.data || '');
+        const m = NX.modal('Beleg prüfen und speichern', `<div class="nx-bi-rcpt">${isImg ? '<img alt="Beleg" src="' + file.data + '" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid rgba(180,120,255,.3)">' : '<p class="mut">📄 ' + esc(file.name) + '</p>'}</div>${g._auto ? '<p class="mut">Die Angaben wurden aus dem Beleg gelesen. Bitte prüfen.</p>' : '<p class="mut">Bitte die Angaben vom Beleg eintragen. Das Foto wird als Beleg gespeichert.</p>'}
+<form novalidate><div class="row"><div class="field"><label for="rv">Lieferant</label><input id="rv" name="vendor" value="${esc(g.vendor)}"></div><div class="field"><label for="rn">Rechnungsnummer</label><input id="rn" name="number" value="${esc(g.number)}"></div></div>
+<div class="row"><div class="field"><label for="rd">Datum</label><input id="rd" name="date" type="date" value="${esc(g.date || new Date().toISOString().slice(0, 10))}"></div><div class="field"><label for="rg">Bruttobetrag (€)</label><input id="rg" name="gross" inputmode="decimal" value="${esc(g.gross)}"></div></div>
+<div class="row"><div class="field"><label for="rc">Kategorie</label><select id="rc" name="category">${cats.map(c => `<option${c === g.category ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></div><div class="field"><label for="rt">USt-Satz</label><select id="rt" name="vat">${[20, 10, 13, 0].map(v => `<option value="${v}"${v === g.vat ? ' selected' : ''}>${v} %</option>`).join('')}</select></div></div>
+<p class="err" id="re" role="alert"></p><div class="acts"><button class="btn" type="submit">Zur Prüfung speichern</button><button type="button" class="btn ghost" data-c>Abbrechen</button></div></form>`, { wide: true });
+        m.querySelector('[data-c]').onclick = m.close;
+        m.querySelector('form').onsubmit = e => {
+            e.preventDefault(); const f = e.target, gross = parseAmount(f.gross.value), er = m.querySelector('#re');
+            if (!f.vendor.value.trim()) return er.textContent = 'Bitte den Lieferanten eintragen.';
+            if (!f.date.value) return er.textContent = 'Bitte das Datum eintragen.';
+            if (isNaN(gross) || gross <= 0) return er.textContent = 'Bitte einen gültigen Bruttobetrag eintragen.';
+            bk.addExpense({ vendor: f.vendor.value.trim(), number: f.number.value.trim(), date: f.date.value, gross, vat: Number(f.vat.value), category: f.category.value, receiptName: file.name, receiptType: file.type, receiptData: file.data });
+            m.close(); NX.toast('Beleg gespeichert. Bitte prüfen und freigeben.'); done && done();
+        };
+    }
+    function photoStatement(dataUrl, done) {
+        const bk = NX.bookkeeping, row = () => `<tr><td><input type="date" data-k="date" aria-label="Datum"></td><td><input data-k="text" aria-label="Beschreibung" placeholder="Beschreibung"></td><td><input data-k="amt" inputmode="decimal" aria-label="Betrag" placeholder="0,00" size="8"></td><td><select data-k="dir" aria-label="Art"><option value="in">Einnahme</option><option value="out" selected>Ausgabe</option></select></td></tr>`;
+        const m = NX.modal('Kontoauszug (Foto) übertragen', `<img alt="Kontoauszug" src="${dataUrl}" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid rgba(180,120,255,.3)"><p class="mut">Fotos können nicht automatisch gelesen werden. Trage die Buchungen vom Foto hier ein; das Foto wird mitgespeichert.</p><div class="table-wrap"><table><tr><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Art</th></tr><tbody id="ps">${row().repeat(4)}</tbody></table></div><div class="acts"><button type="button" class="btn ghost" id="pa">+ Zeile</button><button type="button" class="btn" id="pg">Buchungen importieren</button></div><p class="err" id="pe" role="alert"></p>`, { wide: true });
+        m.querySelector('#pa').onclick = () => m.querySelector('#ps').insertAdjacentHTML('beforeend', row());
+        m.querySelector('#pg').onclick = () => {
+            const rows = [...m.querySelectorAll('#ps tr')].map(r => { const g = k => r.querySelector('[data-k=' + k + ']').value, a = parseAmount(g('amt')); return { date: g('date'), description: g('text').trim() || 'Ohne Verwendungszweck', amount: isNaN(a) ? 0 : (g('dir') === 'out' ? -Math.abs(a) : Math.abs(a)) }; }).filter(r => r.date && r.amount);
+            if (!rows.length) return m.querySelector('#pe').textContent = 'Bitte mindestens eine Buchung mit Datum und Betrag eintragen.';
+            const res = bk.addBank(rows); bk.addReceipt({ name: 'Kontoauszug-Foto.jpg', type: 'image/jpeg', data: dataUrl, note: 'Kontoauszug (Foto), ' + res.added + ' Buchungen' });
+            m.close(); NX.toast(res.added + ' Buchungen importiert' + (res.matched ? ', ' + res.matched + ' automatisch zugeordnet' : '') + '.'); done && done();
+        };
+    }
+    async function receiptFromFile(f, done) {
+        if (/^image\//.test(f.type) || /\.(jpe?g|png|webp|heic)$/i.test(f.name)) { NX.toast('Foto wird vorbereitet …'); try { receiptForm({ _auto: false, vat: 20, category: '' }, { name: f.name.replace(/\.\w+$/, '') + '.jpg', type: 'image/jpeg', data: await resizeImage(f, 1600) }, done); } catch (e) { NX.toast(e.message); } return; }
+        if (f.size > 4 * 1024 * 1024) return NX.toast('Die PDF ist größer als 4 MB. Bitte verkleinern.');
+        try {
+            const buf = await f.arrayBuffer(), lines = await pdfLines(buf), data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
+            receiptForm(Object.assign(guessInvoice(lines), { _auto: lines.length > 0 }), { name: f.name, type: 'application/pdf', data }, done);
+        } catch (e) { NX.toast('Die PDF konnte nicht gelesen werden.'); }
+    }
+    async function statementFromPhoto(f, done) { try { photoStatement(await resizeImage(f, 1600), done); } catch (e) { NX.toast(e.message); } }
+    function hub(o) {
+        o = o || {}; const done = o.done, mobile = isMobile();
+        const m = NX.modal('Importieren', '<div id="hb"></div>');
+        const box = m.querySelector('#hb'), tile = (id, t, s) => `<button type="button" class="nx-ex-opt nx-hub-btn" data-id="${id}"><span><b>${t}</b><small>${s}</small></span></button>`;
+        const stepKind = () => { box.innerHTML = '<p>Was möchtest du importieren?</p><div class="nx-ex-opts">' + tile('statement', 'Kontoauszug', 'Buchungen vom Firmenkonto einlesen') + tile('receipt', 'Rechnung oder Beleg', 'Vom Firmenkonto bezahlte Rechnung als Ausgabe erfassen') + '</div>'; box.onclick = e => { const b = e.target.closest('.nx-hub-btn'); if (b) stepHow(b.dataset.id); }; };
+        const stepHow = kind => {
+            const st = kind === 'statement';
+            box.innerHTML = '<p>' + (st ? 'Kontoauszug' : 'Rechnung oder Beleg') + ' – wie möchtest du ihn importieren?</p><div class="nx-ex-opts">' + tile('pdf', 'PDF', 'PDF-Datei auswählen') + (mobile ? tile('photo', 'Foto', 'Foto aus der Galerie oder mit der Kamera') : '') + (st ? tile('table', 'Tabelle (CSV oder Excel)', 'Export aus dem Online-Banking') : '') + '</div>' + (o.kind ? '' : '<div class="acts"><button type="button" class="btn ghost" data-back>Zurück</button></div>');
+            box.onclick = async e => {
+                if (e.target.closest('[data-back]')) return stepKind();
+                const b = e.target.closest('.nx-hub-btn'); if (!b) return;
+                if (b.dataset.id === 'photo') return stepPhoto(kind);
+                const f = await pick(b.dataset.id === 'table' ? '.csv,.txt,.xlsx' : 'application/pdf,.pdf'); if (!f) return;
+                m.close(); if (st) statementFlow(done, f); else receiptFromFile(f, done);
+            };
+        };
+        const stepPhoto = kind => {
+            box.innerHTML = '<p>Foto – woher?</p><div class="nx-ex-opts">' + tile('gallery', 'Aus der Galerie', 'Vorhandenes Foto auswählen') + tile('camera', 'Foto aufnehmen', 'Kamera öffnen') + '</div><div class="acts"><button type="button" class="btn ghost" data-back>Zurück</button></div>';
+            box.onclick = async e => {
+                if (e.target.closest('[data-back]')) return stepHow(kind);
+                const b = e.target.closest('.nx-hub-btn'); if (!b) return;
+                const f = await pick('image/*', b.dataset.id === 'camera' ? 'environment' : ''); if (!f) return;
+                m.close(); if (kind === 'statement') statementFromPhoto(f, done); else receiptFromFile(f, done);
+            };
+        };
+        if (o.kind) stepHow(o.kind); else stepKind();
+    }
+    NX.bankImport = { open: done => hub({ done }), hub, statementFlow, parseDate, parseAmount, parseCSV, rowsFromGrid, detect, rowsFromPdf };
 })();

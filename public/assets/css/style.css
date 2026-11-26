@@ -2806,17 +2806,7 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 .nx-ax-dl dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width:640px) { .nx-ax-dl { grid-template-columns: 1fr; gap: 2px; } .nx-ax-dl dd { margin-bottom: 8px; } }
 
-/* Nach-oben-Button: rechts unten, erscheint erst nach dem Hinunterscrollen (alle Geräte) */
-.nx-ax-top { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 80; width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 1px solid rgba(174, 83, 255, .55); background: rgba(10, 6, 18, .88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 22px rgba(113, 38, 190, .45); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .25s, transform .25s, border-color .2s; }
-.nx-ax-top.on { opacity: 1; transform: none; pointer-events: auto; }
-.nx-ax-top svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.nx-ax-top:hover, .nx-ax-top:focus-visible { border-color: #b86bff; outline: 0; }
-@media print { .nx-ax-top { display: none; } }
 
-/* Admin: Kopfleiste scrollt mit der Seite weg; Seitenmenü rückt dann bis ganz nach oben */
-.nx-ax-hdr-scroll { position: absolute !important; }
-.admin-app .side { top: 0; height: 100vh; }
-@media (max-width:900px) { .admin-app .side { top: 70px; height: auto; } }
 
 
 /* Dashboard (Admin): moderner Glas-Look mit Blau-Violett-Verlauf */
@@ -2848,11 +2838,6 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 
 
 /* Administratoren (Server) */
-.nx-ax-adm { margin-top:22px; }
-.nx-ax-admlist { list-style:none; margin:10px 0 18px; padding:0; display:grid; gap:10px; }
-.nx-ax-admlist li { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 14px; border:1px solid var(--bd); border-radius:12px; }
-.nx-ax-admact { display:flex; gap:8px; flex-wrap:wrap; }
-.nx-ax-admform { max-width:460px; }
 
 
 /* Dateien, Server-Sicherungen, Automatik */
@@ -2861,3 +2846,59 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 .nx-ax-fact { white-space:nowrap; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .nx-ax-chk { display:flex; align-items:flex-start; gap:10px; margin:12px 0; cursor:pointer; }
 .nx-ax-chk input { margin-top:4px; flex:0 0 auto; }
+
+/* ---------- Admin: feste Arbeitsfläche (Kopf und Fuß immer sichtbar), Seitenwechsel statt langem Scrollen ---------- */
+@media (min-width: 901px) {
+  body.admin-app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  .admin-app #hdr { position: fixed; top: 0; left: 0; right: 0; }
+  .admin-app #root { flex: 1 1 auto; min-height: 0; padding-top: var(--nx-hh, 82px); display: flex; flex-direction: column; overflow: auto; }
+  .admin-app #root > .shell { flex: 1 1 auto; min-height: 0 !important; height: 100%; grid-template-rows: minmax(0, 1fr); }
+  .admin-app .shell > .side { position: static; top: auto; height: auto !important; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .admin-app .shell > .cnt { min-height: 0; overflow: auto; }
+  .admin-app #ftr { flex: 0 0 auto; padding: 8px 0 !important; font-size: .8rem; }
+}
+@media (max-width: 900px) {
+  .admin-app #ftr { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; padding: 8px 0 !important; font-size: .8rem; }
+  .admin-app #root { padding-bottom: 44px; }
+}
+.nx-pg-h { display: none !important; }
+.nx-pg { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 12px 0 4px; }
+.nx-pg button { min-width: 36px; height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(180, 120, 255, .38); background: transparent; color: #e8d9ff; font: 600 .88rem var(--font, inherit); cursor: pointer; }
+.nx-pg button:hover:not(:disabled) { background: rgba(139, 63, 225, .18); }
+.nx-pg button.on { background: linear-gradient(100deg, #7020d8, #922dff); border-color: transparent; color: #fff; }
+.nx-pg button:disabled { opacity: .35; cursor: default; }
+.nx-pg .nx-pg-gap { color: #b9accb; padding: 0 2px; }
+.nx-pg .nx-pg-info { flex-basis: 100%; text-align: center; font-size: .78rem; color: #b9accb; }
+.nx-pg-side { margin-top: auto; padding-top: 8px; justify-content: center; }
+.nx-pg-side .nx-pg-info { display: none; }
+.nx-pg-side button { min-width: 32px; height: 32px; padding: 0 6px; }
+.admin-app .side .nx-pg button { display: inline-flex; align-items: center; justify-content: center; width: auto; min-width: 32px; height: 32px; min-height: 0; margin: 0; padding: 0 8px; }
+
+/* Admin: Live-Anzeige und Benachrichtigungs-Glocke in der Kopfleiste */
+.nx-live-box { display: flex; align-items: center; gap: 10px; margin-right: 12px; }
+.nx-live { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: #b9accb; }
+.nx-live i { width: 9px; height: 9px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 8px rgba(61, 220, 132, .8); }
+.nx-live[data-s="off"] i, .nx-live[data-s="out"] i { background: #ff5d5d; box-shadow: 0 0 8px rgba(255, 93, 93, .8); }
+.nx-live-bell { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(180, 120, 255, .38); background: transparent; cursor: pointer; display: grid; place-items: center; }
+.nx-live-bell svg { width: 19px; height: 19px; fill: none; stroke: #e8d9ff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nx-live-bell[data-on="1"] { background: linear-gradient(100deg, #7020d8, #922dff); border-color: transparent; }
+.nx-live-bell:disabled { opacity: .4; cursor: default; }
+@media (max-width: 640px) { .nx-live { display: none; } .nx-live-box { margin-right: 6px; } }
+
+/* Export-/Import-Auswahl */
+.nx-ex-opts { display: grid; gap: 10px; margin: 12px 0; }
+.nx-ex-opt { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(180, 120, 255, .3); border-radius: 12px; cursor: pointer; }
+.nx-ex-opt:hover { border-color: rgba(196, 92, 255, .7); }
+.nx-ex-opt input { accent-color: #922dff; width: 18px; height: 18px; margin: 0; }
+.nx-ex-opt span { display: flex; flex-direction: column; }
+.nx-ex-opt small { color: #b9accb; }
+.nx-ex-opt:has(input:checked) { border-color: #922dff; background: rgba(139, 63, 225, .16); }
+.nx-hub-btn { width: 100%; text-align: left; font: inherit; color: inherit; background: transparent; }
+.nx-bi-rcpt { margin-bottom: 8px; }
+#ps input, #ps select { width: 100%; min-width: 0; }
+
+/* Mitarbeiter-Rechte (Userverwaltung) */
+.nx-perms { border:1px solid var(--bd); border-radius:12px; padding:12px 14px; margin:6px 0 14px; display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+.nx-perms[hidden] { display:none; }
+.nx-perms legend { padding:0 6px; font-weight:600; }
+.nx-perms .nx-ax-chk { margin:0; }

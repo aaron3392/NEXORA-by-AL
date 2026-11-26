@@ -162,7 +162,7 @@
         <div class="field"><label for="up">Telefon</label><input id="up" name="phone" type="tel" value="${esc(c.phone)}" autocomplete="tel"><small class="err"></small></div>
       </div>
       <div class="row">
-        <div class="field"><label for="ur">Benutzerrolle</label><select id="ur" name="role">${sel(['Kunde', 'Mitarbeiter'], c.role || 'Kunde')}</select></div>
+        <div class="field"><label for="ur">Benutzerrolle</label><select id="ur" name="role">${sel(NX.backend && NX.backend.on && c.role !== 'Mitarbeiter' ? ['Kunde'] : ['Kunde', 'Mitarbeiter'], c.role || 'Kunde')}</select></div>
         <div class="field"><label for="us">Kontostatus</label><select id="us" name="status">${sel(['aktiv', 'inaktiv', 'gesperrt'], c.status)}</select></div>
       </div>
       <div class="field"><label for="uc">Firma (optional)</label><input id="uc" name="companyName" value="${esc(c.companyName || '')}"></div>
@@ -267,35 +267,85 @@
                 location.hash = 'passwort';
             };
     }
-    function user(el) {
-        const adminRow = {
-            id: 'ADMIN-LOCAL', first: 'NEXORA', last: 'Administrator',
-            email: NX.db.auth.user, phone: '–', role: 'Administrator',
-            status: 'aktiv', created: '', lastActivity: ''
-        };
-        NX.listView(el, {
-            title: 'Userverwaltung',
-            ph: 'Name, E-Mail oder Telefon suchen',
-            status: ['aktiv', 'inaktiv', 'gesperrt'],
-            add: '+ Neuer Benutzer',
-            items: () => [adminRow, ...NX.db.customers.filter(c => c.status !== 'loeschung_vorgemerkt')],
-            text: c => `${c.first} ${c.last} ${c.email} ${c.phone} ${c.role || 'Kunde'}`,
-            stat: c => c.status,
-            kpis: all => {
-                return NX.kpi(all.length, 'Benutzer gesamt')
-                    + NX.kpi(all.filter(c => c.status === 'aktiv').length, 'Aktiv')
-                    + NX.kpi(all.filter(c => c.status === 'inaktiv').length, 'Inaktiv')
-                    + NX.kpi(all.filter(c => c.status === 'gesperrt').length, 'Gesperrt');
-            },
-            head: ['Name', 'E-Mail / Benutzername', 'Telefon', 'Rolle', 'Status', 'Registriert', 'Letzte Aktivität'],
-            row: c => [
-                nm(c), esc(c.email), esc(c.phone || '–'), esc(c.role || 'Kunde'),
-                NX.badge(c.status), c.created ? NX.date(c.created) : 'Systemkonto',
-                c.lastActivity ? NX.dt(c.lastActivity) : '–'
-            ],
-            onRow: (id, refresh) => id === 'ADMIN-LOCAL' ? adminAccountModal() : userModal(id, refresh),
-            onAdd: refresh => userModal(null, refresh)
+    /* ---- Konten für den Adminbereich (nur mit Server): Administratoren und Mitarbeiter ---- */
+    const AREAS = [['anfragen', 'Anfragen', 'sehen und bearbeiten'], ['kalender', 'Kalender', 'sehen'], ['projekte', 'Projekte & Support', 'sehen und bearbeiten'], ['verrechnung', 'Verrechnung', 'Angebote, Rechnungen, Mahnungen, Verträge'], ['buchhaltung', 'Buchhaltung', 'Ausgaben, Belege, Bankbuchungen'], ['finanzen', 'Finanzen', 'Übersicht ansehen'], ['zeiterfassung', 'Zeiterfassung', 'Zeiten erfassen'], ['kunden', 'Userverwaltung', 'Kunden und Chat'], ['einstellungen', 'Einstellungen', 'Firmendaten, Website'], ['dateien', 'Dateien', 'hochladen und ansehen']];
+    const sapi = (m, url, body) => fetch(url, { method: m, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(r => r.json().catch(() => ({})).then(j => ({ ok: r.ok, j })), () => ({ ok: false, j: { error: 'Server nicht erreichbar.' } }));
+    const strongPw = p => p.length >= 12 && /[A-Za-z]/.test(p) && /\d/.test(p);
+    function staffModal(a, role0, done) {
+        const isNew = !a, me = a && a.user.toLowerCase() === String(NX.db.auth.user).toLowerCase(), role = a ? a.role : role0;
+        const m = NX.modal(isNew ? (role === 'admin' ? 'Neuen Administrator anlegen' : 'Neuen Mitarbeiter anlegen') : `Konto ${esc(a.name || a.user)}`, `
+    <form novalidate>
+      <div class="row">
+        <div class="field"><label for="sn">Name</label><input id="sn" name="name" value="${esc(a ? a.name : '')}" autocomplete="off"></div>
+        <div class="field"><label for="su2">Benutzername <span class="req">*</span></label><input id="su2" name="user" value="${esc(a ? a.user : '')}" autocomplete="off" ${isNew ? '' : 'readonly'}></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="sr">Rolle</label><select id="sr" name="role" ${me ? 'disabled' : ''}><option value="employee"${role === 'employee' ? ' selected' : ''}>Mitarbeiter (nur freigegebene Bereiche)</option><option value="admin"${role === 'admin' ? ' selected' : ''}>Administrator (alles)</option></select></div>
+        <div class="field"><label for="ss">Kontostatus</label><select id="ss" name="status" ${me ? 'disabled' : ''}><option value="aktiv"${!a || a.status === 'aktiv' ? ' selected' : ''}>aktiv</option><option value="gesperrt"${a && a.status === 'gesperrt' ? ' selected' : ''}>gesperrt</option></select></div>
+      </div>
+      <fieldset class="nx-perms" ${role === 'admin' ? 'hidden' : ''}><legend>Was darf der Mitarbeiter sehen?</legend>${AREAS.map(x => `<label class="nx-ax-chk"><input type="checkbox" name="perm" value="${x[0]}"${a && (a.perms || []).includes(x[0]) ? ' checked' : ''}> <span><strong>${x[1]}</strong> <small class="mut">${x[2]}</small></span></label>`).join('')}</fieldset>
+      <div class="field"><label for="sp">${isNew ? 'Passwort (mind. 12 Zeichen, Buchstaben und Zahlen)' : 'Neues Passwort (leer lassen = unverändert)'}</label><div class="nx-password-wrap"><input id="sp" name="pw" type="password" autocomplete="new-password"></div></div>
+      <p class="err" role="alert"></p>
+      <div class="acts"><button class="btn" type="submit">${isNew ? 'Konto anlegen' : 'Änderungen speichern'}</button><button type="button" class="btn ghost" data-cancel>Abbrechen</button>${isNew || me ? '' : '<button type="button" class="btn ghost sm" data-del>Konto löschen</button>'}</div>
+    </form>`, { wide: true });
+        const f = NX.$('form', m.body), err = NX.$('.err', f), roleSel = f.role;
+        roleSel.onchange = () => { NX.$('.nx-perms', f).hidden = roleSel.value === 'admin'; };
+        NX.$('[data-cancel]', f).onclick = () => m.close();
+        const del = NX.$('[data-del]', f);
+        if (del) del.onclick = async () => { if (!await NX.confirm(`Konto „${a.user}“ endgültig löschen? Die Person kann sich danach nicht mehr anmelden.`, 'Löschen')) return; const r = await sapi('DELETE', '/api/admins/' + encodeURIComponent(a.user)); if (!r.ok) { err.textContent = r.j.error || 'Nicht möglich.'; return; } NX.log('Konto gelöscht: ' + a.user); NX.toast('Konto gelöscht.'); m.close(); done(); };
+        f.onsubmit = NX.guard(async (e) => {
+            e.preventDefault(); err.textContent = '';
+            const user = f.user.value.trim(), pw = f.pw.value, r = me ? 'admin' : roleSel.value;
+            if (user.length < 3) return void (err.textContent = 'Benutzername: mindestens 3 Zeichen.');
+            if ((isNew || pw) && !strongPw(pw)) return void (err.textContent = 'Passwort: mindestens 12 Zeichen mit Buchstaben und Zahlen.');
+            const perms = r === 'employee' ? [...f.querySelectorAll('[name=perm]:checked')].map(x => x.value) : [];
+            if (r === 'employee' && !perms.length && !await NX.confirm('Es ist kein Bereich ausgewählt. Der Mitarbeiter sieht dann nur das Dashboard. Trotzdem speichern?', 'Speichern')) return;
+            const body = { name: f.name.value.trim(), role: r, perms, status: me ? 'aktiv' : f.status.value };
+            if (pw) body.hash = await NX.hash(pw);
+            if (isNew) body.user = user;
+            const res = await sapi(isNew ? 'POST' : 'PUT', isNew ? '/api/admins' : '/api/admins/' + encodeURIComponent(a.user), body);
+            if (!res.ok) { err.textContent = res.j.error || 'Nicht möglich.'; return; }
+            NX.log((isNew ? 'Konto angelegt: ' : 'Konto geändert: ') + user); NX.toast(isNew ? 'Konto angelegt.' : 'Gespeichert.'); m.close(); done();
         });
+    }
+    function addChooser(onCustomer, onStaff) {
+        const t = (k, a, b) => `<button type="button" class="nx-ex-opt nx-hub-btn" data-k="${k}"><span><b>${a}</b><small>${b}</small></span></button>`;
+        const m = NX.modal('Neuer Benutzer', `<p>Was für ein Benutzer soll angelegt werden?</p><div class="nx-ex-opts">${t('customer', 'Kunde', 'Zugang nur zum Kundenportal')}${t('employee', 'Mitarbeiter', 'Adminbereich – nur die freigegebenen Bereiche')}${t('admin', 'Administrator', 'Adminbereich – voller Zugriff')}</div>`);
+        m.body.onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; m.close(); if (b.dataset.k === 'customer') onCustomer(); else onStaff(b.dataset.k); };
+    }
+    /* ---- Userverwaltung ---- */
+    function user(el) {
+        const BE = NX.backend, A = NX.db.auth || {}, srv = !!(BE && BE.on && BE.role === 'admin'), emp = A.role === 'employee';
+        let staff = [];
+        const draw = () => {
+            const adminRow = { id: 'ADMIN-LOCAL', first: 'NEXORA', last: 'Administrator', email: A.user, phone: '–', role: 'Administrator', status: 'aktiv', created: '', lastActivity: '' };
+            const staffRows = staff.map(a => ({ id: 'STAFF:' + a.user, first: a.name || a.user, last: '', email: a.user, phone: '–', role: a.role === 'employee' ? 'Mitarbeiter' : 'Administrator', status: a.status === 'gesperrt' ? 'gesperrt' : 'aktiv', created: a.created ? new Date(a.created).toISOString().slice(0, 10) : '', lastActivity: '' }));
+            const reload = () => user(el);
+            NX.listView(el, {
+                title: 'Userverwaltung',
+                ph: 'Name, E-Mail oder Telefon suchen',
+                status: ['aktiv', 'inaktiv', 'gesperrt'],
+                add: '+ Neuer Benutzer',
+                items: () => [...(srv ? staffRows : emp ? [] : [adminRow]), ...NX.db.customers.filter(c => c.status !== 'loeschung_vorgemerkt')],
+                text: c => `${c.first} ${c.last} ${c.email} ${c.phone} ${c.role || 'Kunde'}`,
+                stat: c => c.status,
+                kpis: all => {
+                    return NX.kpi(all.length, 'Benutzer gesamt')
+                        + NX.kpi(all.filter(c => c.status === 'aktiv').length, 'Aktiv')
+                        + NX.kpi(all.filter(c => c.status === 'inaktiv').length, 'Inaktiv')
+                        + NX.kpi(all.filter(c => c.status === 'gesperrt').length, 'Gesperrt');
+                },
+                head: ['Name', 'E-Mail / Benutzername', 'Telefon', 'Rolle', 'Status', 'Registriert', 'Letzte Aktivität'],
+                row: c => [
+                    nm(c), esc(c.email), esc(c.phone || '–'), esc(c.role || 'Kunde'),
+                    NX.badge(c.status), c.created ? NX.date(c.created) : 'Systemkonto',
+                    c.lastActivity ? NX.dt(c.lastActivity) : '–'
+                ],
+                onRow: (id, refresh) => id === 'ADMIN-LOCAL' ? adminAccountModal() : /^STAFF:/.test(id) ? staffModal(staff.find(a => 'STAFF:' + a.user === id), null, reload) : userModal(id, refresh),
+                onAdd: refresh => srv ? addChooser(() => userModal(null, refresh), k => staffModal(null, k, reload)) : userModal(null, refresh)
+            });
+        };
+        if (srv) sapi('GET', '/api/admins').then(r => { staff = r.ok ? r.j.admins || [] : []; draw(); }); else draw();
     }
     /* ---- Einstellungen ---- */
     const L2T = (a, k) => a.map(x => k.map(f => x[f]).join('|')).join('\n'), T2L = (t, k) => t.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const p = l.split('|'); const o = {}; k.forEach((f, i) => o[f] = (p[i] || '').trim()); return o; });
@@ -448,6 +498,11 @@
     }
     NX.shell({
         role: 'admin', title: 'Administration',
+        allow: id => {
+            const A = NX.db.auth; if (!A || A.role !== 'employee') return true;
+            const area = id === 'dashboard' || id === 'passwort' ? '' : id === 'backup' ? '-' : id === 'user' ? 'kunden' : id === 'webseiteneinstellungen' || id === 'einstellungen' ? 'einstellungen' : /^verrechnung/.test(id) ? 'verrechnung' : /^finanzen/.test(id) ? 'finanzen' : /^zeit/.test(id) ? 'zeiterfassung' : id;
+            return !area || (area !== '-' && (A.perms || []).includes(area));
+        },
         nav: [
             ['dashboard', 'Dashboard'], ['kalender', 'Kalender'], ['anfragen', 'Anfragen'], ['projekte', 'Projekte'],
             { id: 'verrechnung-menu', label: 'Verrechnung', children: [['verrechnung-angebote', 'Angebote'], ['verrechnung-rechnungen', 'Rechnungen'], ['verrechnung-mahnungen', 'Erinnerungen & Mahnungen'], ['verrechnung-vertraege', 'Monatliche Verträge']] },
