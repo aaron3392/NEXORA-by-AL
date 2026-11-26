@@ -435,7 +435,7 @@
         if (!e)
             return { ok: false, msg: 'Es ist keine Firmen-E-Mail hinterlegt (Admin → Einstellungen → Unternehmensdaten). Die Nachricht wurde nicht versendet.' };
         try {
-            const r = await fetch('https://formsubmit.co/ajax/' + encodeURIComponent(e), { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(Object.assign({ _captcha: 'false', _template: 'table' }, payload)) });
+            const r = await fetch('https://formsubmit.co/ajax/' + encodeURIComponent(e), { method: 'POST', referrerPolicy: 'strict-origin-when-cross-origin', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(Object.assign({ _captcha: 'false', _template: 'table' }, payload)) });
             const j = await r.json().catch(() => ({}));
             if (r.ok && (j.success === true || j.success === 'true'))
                 return { ok: true, msg: 'FormSubmit hat die Nachricht angenommen. Eine Zustellung ist damit nicht bestätigt (ggf. muss die Adresse bei FormSubmit erst aktiviert werden).' };

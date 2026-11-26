@@ -409,7 +409,7 @@ function serve(req, res, url) {
     fs.readFile(f, (e2, buf) => {
       if (e2) { res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end('<!doctype html><meta charset="utf-8"><title>Nicht gefunden</title><p>Seite nicht gefunden. <a href="/">Zur Startseite</a>'); }
       const ext = path.extname(f).toLowerCase();
-      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': /\.(png|jpe?g|svg|webp|ico|woff2)$/.test(ext) ? 'public, max-age=86400' : 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' });
+      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': /\.(png|jpe?g|svg|webp|ico|woff2)$/.test(ext) ? 'public, max-age=86400' : 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' });
       res.end(req.method === 'HEAD' ? undefined : buf);
     });
   });
