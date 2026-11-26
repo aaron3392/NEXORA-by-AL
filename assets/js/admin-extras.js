@@ -628,10 +628,10 @@
     rmBusy = true; var n = 0;
     try {
       var job = async function () {
-        var st = rmLoad(), to = (NX.db.settings && NX.db.settings.formsubmit) || '';
+        var st = rmLoad(), to = (NX.db.settings && (NX.db.settings.email || NX.db.settings.formsubmit)) || '';
         for (var i = 0; i < due.length; i++) {
           var d = due[i], it = d.it; if (st.sent[d.key]) continue;
-          if (!to) { if (!rmWarned) { rmWarned = true; NX.toast('Termin-Erinnerung nicht gesendet: Bitte unter Einstellungen die E-Mail-Adresse für FormSubmit eintragen.'); } continue; }
+          if (!to) { if (!rmWarned) { rmWarned = true; NX.toast('Termin-Erinnerung nicht gesendet: Bitte unter Einstellungen bei den Unternehmensdaten die E-Mail-Adresse eintragen.'); } continue; }
           var when = it.allDay ? 'ganztägig' : it.start + (it.end ? '–' + it.end : '') + ' Uhr';
           var r = await NX.formsubmit({ _subject: 'Erinnerung: ' + it.title + (it.allDay ? ' (heute)' : ' um ' + it.start + ' Uhr'), Termin: it.title, Datum: cLong(it.date), Zeit: when, Details: it.sub || '–', Hinweis: it.allDay ? 'Ganztägiger Eintrag – Erinnerung am Morgen.' : 'Erinnerung 1 Stunde vor Beginn.' });
           if (NX.mailLog) NX.mailLog(to, 'Erinnerung: ' + it.title, 'Termin-Erinnerung', r.ok ? 'an FormSubmit übergeben' : 'nicht versendet');

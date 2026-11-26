@@ -378,15 +378,14 @@
  <h3>Rechnungen & Angebote</h3><div class="row"><div class="field"><label for="t1">Standard-USt (%)</label><input id="t1" name="vatRate" type="number" step="0.1" min="0" value="${s.vatRate}"></div><div class="field"><label for="t2">Fälligkeit (Tage)</label><input id="t2" name="dueDays" type="number" min="0" value="${s.dueDays}"></div><div class="field"><label for="t3">Angebotsgültigkeit (Tage)</label><input id="t3" name="offerDays" type="number" min="0" value="${s.offerDays}"></div><div class="field"><label for="t4">Standard-Stundensatz (€)</label><input id="t4" name="hourlyRate" type="number" step="0.01" min="0" value="${(s.hourlyRate / 100).toFixed(2)}"></div></div>
  <h3>Erinnerungen & Mahnungen (frei konfigurierbar)</h3><div class="row"><div class="field"><label for="f1">Frist Erinnerung (Tage)</label><input id="f1" name="dr" type="number" min="0" value="${s.reminderDays.r}"></div><div class="field"><label for="f2">Frist 1. Mahnung (Tage)</label><input id="f2" name="d1" type="number" min="0" value="${s.reminderDays.m1}"></div><div class="field"><label for="f3">Frist 2. Mahnung (Tage)</label><input id="f3" name="d2" type="number" min="0" value="${s.reminderDays.m2}"></div></div>
  <div class="row"><div class="field"><label for="g1">Gebühr Erinnerung (€)</label><input id="g1" name="fr" type="number" step="0.01" min="0" value="${(s.fees.r / 100).toFixed(2)}"></div><div class="field"><label for="g2">Gebühr 1. Mahnung (€)</label><input id="g2" name="f1" type="number" step="0.01" min="0" value="${(s.fees.m1 / 100).toFixed(2)}"></div><div class="field"><label for="g3">Gebühr 2. Mahnung (€)</label><input id="g3" name="f2" type="number" step="0.01" min="0" value="${(s.fees.m2 / 100).toFixed(2)}"></div></div>
- <h3>E-Mail (FormSubmit)</h3><div class="field"><label for="fs">Empfängeradresse für FormSubmit</label><input id="fs" name="formsubmit" type="email" value="${esc(s.formsubmit)}"></div>
  <div class="acts settings-actions"><button class="btn" type="submit">Einstellungen speichern</button></div></form>`;
         const f = NX.$('form', el);
         f.onsubmit = NX.guard(async (e) => {
             e.preventDefault();
-            if (!NX.check(f, { email: ['email'], formsubmit: ['email'] }))
+            if (!NX.check(f, { email: ['email'] }))
                 return;
             const x = NX.fd(f);
-            ['company', 'owner', 'street', 'zip', 'city', 'email', 'phone', 'vatId', 'iban', 'bic', 'formsubmit'].forEach(k => s[k] = x[k].trim());
+            ['company', 'owner', 'street', 'zip', 'city', 'email', 'phone', 'vatId', 'iban', 'bic'].forEach(k => s[k] = x[k].trim());
             s.vatRate = parseFloat(x.vatRate) || 0;
             s.dueDays = parseInt(x.dueDays) || 0;
             s.offerDays = parseInt(x.offerDays) || 0;

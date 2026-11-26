@@ -342,3 +342,6 @@
 - Angebote, Kostenvoranschläge, Rechnungen, Erinnerungen und Mahnungen haben statt „E-Mail“ den Knopf **Senden** (Listen, Dokument-Dialoge und Projekt-Dialog). Im Dialog speichert er zuerst.
 - Senden gibt das Dokument im Kundenportal frei (Angebot „Entwurf“ → „Versendet“, Rechnung kein Entwurf mehr) und verschickt die E-Mail direkt an die Adresse des Kunden, ohne Vorschau. Die Mail enthält die wichtigsten Angaben und den Link zum Kundenportal.
 - Der Versand läuft über FormSubmit (wie bisher); hat der Kunde keine E-Mail-Adresse, wird nur im Portal freigegeben. Der Server liefert dem Admin dafür die öffentliche Adresse (`auth.publicUrl`).
+
+## Nachtrag 46 – Eine E-Mail für alles
+- Einstellungen: der Punkt „E-Mail (FormSubmit)“ entfällt. Anfragen, Kontaktnachrichten, Termin-Erinnerungen und Kunden-Mails nutzen die E-Mail-Adresse aus den Unternehmensdaten (eine früher hinterlegte FormSubmit-Adresse gilt nur als Ersatz, solange dort nichts steht).
