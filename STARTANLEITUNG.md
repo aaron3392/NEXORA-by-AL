@@ -13,8 +13,6 @@ Kein Node.js, kein npm, kein Backend und keine Datenbank erforderlich.
 - Nach dem Austausch von Dateien bei Bedarf hart neu laden (Strg + Shift + R), damit der Browser das neue Stylesheet und die neue Hintergrundgrafik lädt.
 
 **Optionale Tests (nur für Entwickler, nicht für den Betrieb)**
-- Mit installiertem Node.js: `node tests/core-smoke-test.js` usw. (alle Dateien `tests/*-test.js`).
-- Browser-Test: `tests/browser/` (Python + Playwright), siehe Kommentar am Dateianfang.
 
 ## Schnellstart in 3 Schritten
 1. ZIP entpacken – es entsteht der Ordner `NEXORA-by-AL`.

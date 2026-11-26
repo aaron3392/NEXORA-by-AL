@@ -285,3 +285,6 @@
 - Derselbe Code läuft als zwei Apps mit derselben Datenbank, gesteuert über `NX_MODE`: `public` (Webseite + Kundenportal; kein `/admin/`, keine Admin-Skripte, keine Admin-Schnittstellen, Admin-Login serverseitig verweigert) und `admin` (nur Admin; `/` leitet nach `/admin/`, öffentliche Seiten leiten zu `NX_PUBLIC_URL`, Kunden-Login und Schreibzugriffe ohne Admin-Sitzung werden verweigert). `all` (Standard) verhält sich wie bisher.
 - Wartung (Sicherungen, Automatik) läuft mit Datenbank-Sperre, damit zwei Apps sie nicht doppelt ausführen.
 - Test: `tests/server/modus-test.py` (17 Prüfungen), `tests/server/backend-test.py` weiterhin 60/60.
+
+## Nachtrag 35 – Test- und Demo-Inhalte entfernt
+- Entfernt: Ordner `tests/` (inkl. Beispieldaten), Testberichte, Screenshots, Demo-Bankbewegungen und Demo-Schaltflächen in der Buchhaltung, Schaltflächen „Demo-Daten zurücksetzen“, Seeding-Hook für Testdaten, Hinweis „Lokale Vorschau (Demo-Daten)“ in der Fußzeile. Frühere Nachträge nennen die Tests noch als Verlauf.

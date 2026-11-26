@@ -12,12 +12,11 @@ Es ist **keine Node.js-Installation, kein Backend und kein lokaler API-Server** 
 - Buchhaltungs-Dashboard und Auswertung aus vorhandenen Rechnungsdaten.
 - Ausgaben manuell erfassen und zur Freigabe vormerken.
 - Belege lokal im Browser zuordnen (Speichergrenzen des Browsers beachten).
-- N26-Demo-Transaktionen importieren, kategorisieren und manuell zuordnen.
 - CSV-Auswertungen, Anlagenliste und Rücklagenparameter.
-- Änderungsprotokoll und Demo-Daten zurücksetzen.
+- Änderungsprotokoll.
 
 ## Bewusste Grenzen des reinen Browserbetriebs
-- N26 kann ohne zugelassenen Open-Banking-Dienst und geschützten Serverzugang nicht live verbunden werden. Der N26-Bereich bleibt daher Simulation.
+- N26 kann ohne zugelassenen Open-Banking-Dienst und geschützten Serverzugang nicht live verbunden werden. Zahlungen werden deshalb manuell zugeordnet.
 - Keine Hintergrund-Synchronisierung, wenn die Seite geschlossen ist.
 - Keine KI-/OCR-Belegerkennung ohne externen KI-Dienst. Lokale manuelle Erfassung bleibt möglich.
 - Browser-`localStorage` ist keine professionelle Datenbank und bietet keine echte Mehrbenutzer- oder Zugriffssicherheit. Backups regelmäßig exportieren.

@@ -276,10 +276,9 @@
         read: k => { try { return JSON.parse(ls.get('nexora_stat_' + k)) || {}; } catch (e) { return {}; } },
         bump: function (k) { try { const m = this.read(k), t = NX.today(), cut = NX.addDays(t, -800); m[t] = (m[t] || 0) + 1; Object.keys(m).forEach(d => { if (d < cut) delete m[d]; }); ls.set('nexora_stat_' + k, JSON.stringify(m)); } catch (e) { } }
     };
-    /* ---------- Demo-Daten ---------- */
+    /* ---------- Startdaten ---------- */
     /* Leere Startdaten: keine Kunden, keine Zugangsdaten. Der Administrator wird bei der Ersteinrichtung angelegt. */
     async function seed() {
-        if (typeof window.NX_SEED_FN === 'function') return window.NX_SEED_FN(NX);
         return {
             v: 1, auth: null,
             settings: {
@@ -303,7 +302,6 @@
         archived: () => (NX.db.customers || []).filter(c => c.status === 'loeschung_vorgemerkt'),
         purgeExpired: () => { const now = Date.now(), before = NX.db.customers.length; NX.db.customers = NX.db.customers.filter(c => c.status !== 'loeschung_vorgemerkt' || !c.restoreUntil || now <= c.restoreUntil); if (NX.db.customers.length !== before) NX.save(); return before - NX.db.customers.length; }
     };
-    NX.reset = async () => { ls.del(KEY); NX.db = await seed(); NX.save(); };
     NX.ready = (async () => { const r = ls.get(KEY); if (r) {
         try {
             NX.db = JSON.parse(r);
@@ -410,7 +408,7 @@
         const f = NX.$('#ftr');
         if (f) {
             const q = s => `${b}anfrage.html?service=${encodeURIComponent(s)}`;
-            f.innerHTML = `<div class="nx-foot"><div class="nx-foot-grid"><div class="nx-foot-brand"><a href="${b}index.html" aria-label="NEXORA by AL – Startseite"><img src="${b}assets/images/nexora-logo-hero.png" alt="NEXORA by AL – Digital Solutions"></a><p>Webdesign, Webanwendungen, Kundenportale, mobile Apps und individuelle Software – modern, verständlich und zuverlässig umgesetzt.</p></div><nav aria-label="Seiten"><h4>Navigation</h4>${L.map(l => `<a href="${b}${l[0]}">${l[1]}</a>`).join('')}</nav><nav aria-label="Leistungen"><h4>Leistungen</h4><a href="${q('Individuelles Webdesign')}">Webdesign</a><a href="${q('Webentwicklung und Webanwendungen')}">Webanwendungen</a><a href="${q('Kundenportale')}">Kundenportale</a><a href="${q('Mobile Apps für iOS und Android')}">Mobile Apps</a><a href="${q('Hosting und technische Betreuung')}">Hosting &amp; Betreuung</a></nav><nav aria-label="Kontakt"><h4>Kontakt</h4><a href="${b}kontakt.html">Kontaktformular</a><a href="${b}anfrage.html">Projekt anfragen</a><a href="${b}kundenportal.html">Kundenportal</a></nav></div><div class="nx-foot-bottom"><div class="nx-legal"><a href="${b}impressum.html">Impressum</a><a href="${b}datenschutz.html">Datenschutz</a><a href="${b}agb.html">AGB</a></div><div>© ${new Date().getFullYear()} NEXORA by AL · Lokale Vorschau (Demo-Daten im Browser)</div></div></div>`;
+            f.innerHTML = `<div class="nx-foot"><div class="nx-foot-grid"><div class="nx-foot-brand"><a href="${b}index.html" aria-label="NEXORA by AL – Startseite"><img src="${b}assets/images/nexora-logo-hero.png" alt="NEXORA by AL – Digital Solutions"></a><p>Webdesign, Webanwendungen, Kundenportale, mobile Apps und individuelle Software – modern, verständlich und zuverlässig umgesetzt.</p></div><nav aria-label="Seiten"><h4>Navigation</h4>${L.map(l => `<a href="${b}${l[0]}">${l[1]}</a>`).join('')}</nav><nav aria-label="Leistungen"><h4>Leistungen</h4><a href="${q('Individuelles Webdesign')}">Webdesign</a><a href="${q('Webentwicklung und Webanwendungen')}">Webanwendungen</a><a href="${q('Kundenportale')}">Kundenportale</a><a href="${q('Mobile Apps für iOS und Android')}">Mobile Apps</a><a href="${q('Hosting und technische Betreuung')}">Hosting &amp; Betreuung</a></nav><nav aria-label="Kontakt"><h4>Kontakt</h4><a href="${b}kontakt.html">Kontaktformular</a><a href="${b}anfrage.html">Projekt anfragen</a><a href="${b}kundenportal.html">Kundenportal</a></nav></div><div class="nx-foot-bottom"><div class="nx-legal"><a href="${b}impressum.html">Impressum</a><a href="${b}datenschutz.html">Datenschutz</a><a href="${b}agb.html">AGB</a></div><div>© ${new Date().getFullYear()} NEXORA by AL</div></div></div>`;
         }
     };
     /* ---------- Dokumente (Rechnungsdesign Weiß / Dunkelgrau / Gold) ---------- */
