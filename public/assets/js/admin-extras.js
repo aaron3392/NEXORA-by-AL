@@ -85,14 +85,14 @@
     var box = document.querySelector('.nx-ax-search'); if (!box) return;
     var side = document.querySelector('.side'), hb = document.querySelector('#hdr .hb'), small = window.innerWidth <= 900;
     if (small && side) { if (box.parentNode !== side || side.firstChild !== box) side.insertBefore(box, side.firstChild); box.classList.add('in-side'); }
-    else if (!small && hb) { if (box.parentNode !== hb) { var t = hb.querySelector('.htitle'); if (t) t.insertAdjacentElement('afterend', box); else hb.insertBefore(box, hb.children[1] || null); } box.classList.remove('in-side'); }
+    else if (!small && hb) { if (box.parentNode !== hb) { var t = hb.querySelector('.htitle') || hb.querySelector('.logo'); if (t) t.insertAdjacentElement('afterend', box); else hb.insertBefore(box, hb.children[1] || null); } box.classList.remove('in-side'); }
   }
   window.addEventListener('resize', placeSearch);
   function mountSearch() {
     var hb = document.querySelector('#hdr .hb'); if (!hb || document.querySelector('.nx-ax-search') || !NX.db) return;
     var box = document.createElement('div'); box.className = 'nx-ax-search';
     box.innerHTML = '<input type="search" placeholder="Suchen …" title="Taste / springt ins Suchfeld" aria-label="Kunden, Rechnungen, Projekte durchsuchen" autocomplete="off"><div class="nx-ax-res" role="listbox" hidden></div>';
-    var title = hb.querySelector('.htitle'); if (title) title.insertAdjacentElement('afterend', box); else hb.insertBefore(box, hb.children[1] || null);
+    var title = hb.querySelector('.htitle') || hb.querySelector('.logo'); if (title) title.insertAdjacentElement('afterend', box); else hb.insertBefore(box, hb.children[1] || null);
     var inp = box.querySelector('input'), res = box.querySelector('.nx-ax-res'), items = [];
     var close = function () { res.hidden = true; };
     var draw = function () {

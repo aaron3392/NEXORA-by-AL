@@ -2935,3 +2935,18 @@ body:not(.light) select option:checked, body:not(.light) select option:hover { b
 .nx-pdoc h4 { margin:0 0 6px; }
 .nx-pdoc ul { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
 .nx-pdoc li { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+
+/* Profil-Button bleibt rechts, auch bevor die Live-Anzeige eingehängt ist */
+.admin-app .hb .nx-me { margin-left: auto; }
+.admin-app .hb .nx-live-box + .nx-me { margin-left: 0; }
+
+/* Header Admin: Logo links, Suche mittig, rechts Live · Glocke · Profil */
+.admin-app .hb { display: flex; align-items: center; }
+.admin-app .hb > .logo { flex: 1 1 0; min-width: 0; }
+.admin-app .hb > .nx-ax-search { flex: 0 1 380px; margin: 0 12px; }
+.admin-app .hb > .hr { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: flex-end; }
+.admin-app .hb .hr .nx-live-box { margin-left: 0; }
+.admin-app .hb .hr .nx-me { margin-left: 0; margin-right: 0; }
+@media (max-width: 900px) { .admin-app .hb > .logo { flex: 0 0 auto; } .admin-app .hb > .hr { margin-left: auto; } }
+.admin-app .hb > .logo { pointer-events: none; } .admin-app .hb > .logo img { pointer-events: auto; }
+.admin-app .hb > .logo { justify-content: flex-start; }

@@ -509,9 +509,10 @@
       <div class="row"><div class="field"><label for="m1">Neues Passwort</label><div class="nx-password-wrap"><input id="m1" name="n1" type="password" autocomplete="new-password"></div></div>
       <div class="field"><label for="m2">Neues Passwort wiederholen</label><div class="nx-password-wrap"><input id="m2" name="n2" type="password" autocomplete="new-password"></div></div></div>
       <p class="err" role="alert"></p>
-      <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-cancel>Abbrechen</button></div></form>`);
+      <div class="acts"><button class="btn" type="submit">Speichern</button><button type="button" class="btn ghost" data-cancel>Abbrechen</button><button type="button" class="btn ghost" data-logout style="margin-left:auto">Abmelden</button></div></form>`);
         const f = NX.$('form', m.body), err = NX.$('.err', f);
         NX.$('[data-cancel]', f).onclick = () => m.close();
+        NX.$('[data-logout]', f).onclick = () => { m.close(); const l = NX.$('#lo'); if (l) l.click(); };
         f.onsubmit = NX.guard(async (e) => {
             e.preventDefault(); err.textContent = '';
             const x = NX.fd(f), user = x.user.trim(), name = x.name.trim(), pwNew = !!(x.n1 || x.n2 || x.old);
