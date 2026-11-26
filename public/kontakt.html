@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+  <title>
+   Kontakt &ndash; NEXORA by AL
+  </title>
+  <link href="assets/images/favicon.svg" rel="icon" type="image/svg+xml"/>
+  <link href="assets/css/style.css" rel="stylesheet"/>
+  <link href="assets/css/public.css" rel="stylesheet"/>
+  <meta content="#050309" name="theme-color"/>
+ </head>
+ <body class="nx-public" data-base="">
+  <header class="nx-hdr" id="hdr">
+  </header>
+  <main>
+   <section class="nx-pagehead">
+    <div class="nx-wrap">
+     <span class="nx-eyebrow">Kontakt</span>
+     <h1>Kontakt</h1>
+     <p class="nx-lead">Wir freuen uns auf Ihre Nachricht.</p>
+    </div>
+   </section>
+   <section class="nx-sec nx-sec-flush"><div class="nx-wrap nx-narrow">
+    <form class="card formcard" data-kind="kontakt" id="pf" novalidate="">
+     <div class="row">
+      <div class="field">
+       <label for="k1">
+        Vorname
+        <span class="req">
+         *
+        </span>
+       </label>
+       <input autocomplete="given-name" id="k1" name="first"/>
+      </div>
+      <div class="field">
+       <label for="k2">
+        Nachname
+        <span class="req">
+         *
+        </span>
+       </label>
+       <input autocomplete="family-name" id="k2" name="last"/>
+      </div>
+     </div>
+     <div class="row">
+      <div class="field">
+       <label for="k3">
+        E-Mail-Adresse
+        <span class="req">
+         *
+        </span>
+       </label>
+       <input autocomplete="email" id="k3" name="email" type="email"/>
+      </div>
+      <div class="field">
+       <label for="k4">
+        Telefonnummer (optional)
+       </label>
+       <input autocomplete="tel" id="k4" name="phone" type="tel"/>
+      </div>
+     </div>
+     <div class="field">
+      <label for="k5">
+       Betreff
+       <span class="req">
+        *
+       </span>
+      </label>
+      <input id="k5" name="subject"/>
+     </div>
+     <div class="field">
+      <label for="k6">
+       Nachricht
+       <span class="req">
+        *
+       </span>
+      </label>
+      <textarea id="k6" name="message" rows="6"></textarea>
+     </div>
+     <div class="field chk">
+      <input id="k7" name="privacy" type="checkbox"/>
+      <label for="k7">
+       Ich habe die
+       <a href="datenschutz.html">
+        Datenschutzerkl&auml;rung
+       </a>
+       gelesen und stimme der Verarbeitung meiner Angaben zu.
+       <span class="req">
+        *
+       </span>
+      </label>
+     </div>
+     <p class="note" id="fs" role="status">
+      Hinweis: Ihre Nachricht wird lokal in diesem Browser gespeichert. Nur wenn im Admin-Bereich ein E-Mail-Dienst (FormSubmit) eingerichtet ist, wird sie zus&auml;tzlich dorthin &uuml;bergeben.
+     </p>
+     <button class="btn" type="submit">
+      Nachricht senden
+     </button>
+    </form>
+   </div></section>
+  </main>
+  <footer class="nx-ftr" id="ftr">
+  </footer>
+  <script src="assets/js/core.js">
+  </script>
+  <script src="assets/js/pages.js">
+  </script>
+ </body>
+</html>
+

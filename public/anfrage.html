@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+  <title>
+   Projekt anfragen &ndash; NEXORA by AL
+  </title>
+  <link href="assets/images/favicon.svg" rel="icon" type="image/svg+xml"/>
+  <link href="assets/css/style.css" rel="stylesheet"/>
+  <link href="assets/css/public.css" rel="stylesheet"/>
+  <meta content="#050309" name="theme-color"/>
+ </head>
+ <body class="nx-public" data-base="">
+  <header class="nx-hdr" id="hdr">
+  </header>
+  <main>
+   <section class="nx-pagehead">
+    <div class="nx-wrap">
+     <span class="nx-eyebrow">Projektanfrage</span>
+     <h1>Projekt anfragen</h1>
+     <p class="nx-lead">Beschreiben Sie Ihr Vorhaben &ndash; je genauer, desto besser kann das Angebot passen. Angemeldete Kunden werden automatisch vorausgef&uuml;llt.</p>
+    </div>
+   </section>
+   <section class="nx-sec nx-sec-flush"><div class="nx-wrap nx-narrow">
+    <form class="card formcard" data-kind="anfrage" id="pf" novalidate="">
+     <h2>1. Kontaktdaten</h2>
+     <div class="row"><div class="field"><label for="a1">Vorname <span class="req">*</span></label><input autocomplete="given-name" id="a1" name="first" required></div><div class="field"><label for="a2">Nachname <span class="req">*</span></label><input autocomplete="family-name" id="a2" name="last" required></div></div>
+     <div class="row"><div class="field"><label for="a3">E-Mail-Adresse <span class="req">*</span></label><input autocomplete="email" id="a3" name="email" type="email" required></div><div class="field"><label for="a4">Telefonnummer <span class="req" id="phone-req" hidden>*</span></label><input autocomplete="tel" id="a4" name="phone" type="tel"></div></div>
+     <div class="row"><div class="field"><label for="a12">Firma (optional)</label><input autocomplete="organization" id="a12" name="company"></div><div class="field"><label for="a13">Bevorzugter Kontaktweg</label><select id="a13" name="contactPref"><option>E-Mail</option><option>Telefon</option><option>Rückruf-Termin vereinbaren</option></select></div></div>
+     <h3 class="nx-sub">Rechnungsadresse (optional)</h3>
+     <div class="row"><div class="field"><label for="b1">Straße</label><input autocomplete="address-line1" id="b1" name="street"></div><div class="field"><label for="b2">Hausnummer</label><input id="b2" name="no"></div></div>
+     <div class="row"><div class="field"><label for="b3">PLZ</label><input autocomplete="postal-code" id="b3" name="zip"></div><div class="field"><label for="b4">Ort</label><input autocomplete="address-level2" id="b4" name="city"></div></div>
+     <div class="row"><div class="field"><label for="b5">Land</label><input autocomplete="country-name" id="b5" name="country" value="Österreich"></div><div class="field"><label for="b6">UID-Nummer (optional, bei Firmen)</label><input id="b6" name="vatId" placeholder="z. B. ATU12345678"></div></div>
+     <h2>2. Ihr Projekt</h2>
+     <div class="field"><label for="svsel">Gewünschte Dienstleistung <span class="req">*</span></label><select id="svsel" name="service" required></select></div>
+     <div class="field"><label for="a5">Projekttitel <span class="req">*</span></label><input id="a5" name="subject" required placeholder="z. B. Neue Unternehmenswebsite"></div>
+     <div class="field"><label for="a6">Was soll umgesetzt werden? <span class="req">*</span></label><textarea id="a6" name="message" rows="4" required placeholder="Beschreiben Sie Ihr Ziel, Ihre Zielgruppe und den gewünschten Ablauf."></textarea></div>
+     <div id="service-details" class="card" style="margin:16px 0;padding:18px"><h3>Projektdetails</h3><p class="mut">Bitte wählen Sie zuerst eine Dienstleistung.</p></div>
+     <div class="row"><div class="field"><label for="a8">Budgetrahmen <span class="req">*</span></label><select id="a8" name="budget" required><option value="">Bitte wählen</option><option>Bis 1.000 €</option><option>1.000–2.500 €</option><option>2.500–5.000 €</option><option>5.000–10.000 €</option><option>Über 10.000 €</option><option>Bitte beraten</option></select></div><div class="field"><label for="a9">Gewünschter Zeitrahmen <span class="req">*</span></label><select id="a9" name="timeframe" required><option value="">Bitte wählen</option><option>So schnell wie möglich</option><option>Innerhalb 1–3 Monate</option><option>Innerhalb 3–6 Monate</option><option>Flexibel</option></select></div></div>
+     <div class="row"><div class="field"><label for="c1">Gewünschter Fertigstellungstermin (optional)</label><input id="c1" name="wishDate" type="date"></div></div>
+     <h2>3. Zahlungsmodell und Betreuung</h2>
+     <div class="field"><label id="lbl-pay">Zahlungsmodell <span class="req">*</span></label><div class="nx-tiles" role="radiogroup" aria-labelledby="lbl-pay"><label class="nx-tile"><input type="radio" name="paymentModel" value="einmalig" required checked><span class="nx-tile-body"><b>Einmalige Zahlung</b><small>Projektpreis nach Angebot, z. B. Anzahlung und Schlussrechnung.</small></span></label><label class="nx-tile"><input type="radio" name="paymentModel" value="monatlich" required><span class="nx-tile-body"><b>Monatliche Zahlung</b><small>Laufende monatliche Kosten gemäß gewähltem Paket.</small></span></label></div></div>
+     <div id="monthly-options" class="field" hidden><label for="monthlyPackage">Monatliches Paket <span class="req">*</span></label><select id="monthlyPackage" name="monthlyPackage"><option value="">Bitte Paket wählen</option></select></div>
+     <div class="field"><label id="lbl-host">Hosting <span class="req">*</span></label><div class="nx-tiles" role="radiogroup" aria-labelledby="lbl-host"><label class="nx-tile"><input type="radio" name="hostingModel" value="nexora" required checked><span class="nx-tile-body"><b>Hosting durch NEXORA</b><small>Hosting und die im Paket enthaltene technische Betreuung.</small></span></label><label class="nx-tile"><input type="radio" name="hostingModel" value="eigen" required><span class="nx-tile-body"><b>Eigenes Hosting</b><small>Ich stelle Server/Webhosting selbst bereit.</small></span></label></div></div>
+     <div class="field"><label for="hostingNotes">Hosting-Details (optional)</label><textarea id="hostingNotes" name="hostingNotes" rows="2" placeholder="z. B. bestehender Anbieter, Domain oder Server"></textarea></div>
+     <div class="field"><label for="a10">Weitere Informationen (optional)</label><textarea id="a10" name="extra" rows="3"></textarea></div>
+     <div class="field chk"><input id="a11" name="privacy" type="checkbox" required><label for="a11">Ich habe die <a href="datenschutz.html">Datenschutzerklärung</a> gelesen und stimme der Verarbeitung meiner Angaben zu. <span class="req">*</span></label></div>
+     <p class="note" id="fs" role="status"></p>
+     <button class="btn" type="submit">Projektanfrage absenden</button>
+    </form>
+   </div></section>
+  </main>
+  <footer class="nx-ftr" id="ftr">
+  </footer>
+  <script src="assets/js/core.js">
+  </script>
+  <script src="assets/js/pages.js">
+  </script>
+ </body>
+</html>
+
