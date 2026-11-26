@@ -319,3 +319,12 @@
 - Admin-Kopfleiste: Titel „Administration“ entfernt; Live-Anzeige und Glocke rechts, daneben der runde Profil-Knopf mit den Initialen des angemeldeten Kontos (aus Name, sonst Benutzername), dann „Abmelden“.
 - Profil-Dialog (Knopf mit Initialen): jeder Administrator/Mitarbeiter ändert Name, Benutzername und Passwort (Passwort nur mit bisherigem Passwort). Der Menüpunkt „Passwort ändern“ entfällt. Server: `PUT /api/me`.
 - Administratoren ändern in der Userverwaltung Name, Benutzername und Passwort jedes Kontos. Danach werden dessen andere Anmeldungen beendet. Das Passwort kann nur noch über diese Wege geändert werden (nicht mehr über die Datensynchronisierung).
+
+## Nachtrag 41 – Handy-Menü, Kundenprofil
+- Handy: das geöffnete Admin-Menü ist undurchsichtig (zuvor schien der Hintergrund durch).
+- Kundenportal: Meldungen „Profil gespeichert.“ / „Anfrage gespeichert.“ (statt „lokal“).
+- **Fehlerbehebung:** Nach Registrierung oder dem Festlegen eines neuen Passworts war der Kunde noch nicht serverseitig angemeldet, Profiländerungen wurden bis zur nächsten Anmeldung nicht in der Datenbank gespeichert. Jetzt meldet das Portal den Kunden dort sofort am Server an.
+
+## Nachtrag 42 – Ablauf Anfrage → Projekt → Dokumente
+- Anfrage: Knopf „Annehmen und Projekt anlegen“. Die angenommene Anfrage verschwindet aus „Anfragen“ (bleibt im Projekt verknüpft, ihre Dateien erscheinen dort) und der Projekt-Dialog öffnet sich sofort.
+- Projekt-Dialog: Bereich „Dokumente zum Projekt“ mit „+ Kostenvoranschlag“, „+ Angebot“, „+ Rechnung“ (Kunde und Projekt vorbelegt) sowie Ansehen, Bearbeiten und „Per E-Mail senden“ je Dokument. Die Menüpunkte unter Verrechnung bleiben als Gesamtübersicht.

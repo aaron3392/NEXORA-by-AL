@@ -85,7 +85,12 @@
             const f = NX.$('form', m.body);
             f.onsubmit = NX.guard(async (e) => { e.preventDefault(); if (!NX.check(f, { n1: ['req', 'pw'], n2: ['req'] }))
                 return; const x = NX.fd(f); if (x.n1 !== x.n2)
-                return setErr(f, 'n2', 'Die Passwörter stimmen nicht überein.'); c.pwHash = await NX.hash(x.n1); c.resetPending = false; NX.log('Kunde setzt neues Passwort: ' + c.id); NX.sess.set('customer', c.id); m.close(); app(); });
+                return setErr(f, 'n2', 'Die Passwörter stimmen nicht überein.'); c.pwHash = await NX.hash(x.n1); c.resetPending = false; NX.log('Kunde setzt neues Passwort: ' + c.id); await srvLogin(c.email, c.pwHash); NX.sess.set('customer', c.id); m.close(); app(); });
+        }
+        /* Mit Server: nach Registrierung bzw. neuem Passwort sofort serverseitig anmelden, damit Profiländerungen gespeichert werden (wartet kurz, bis der Server das Konto kennt). */
+        async function srvLogin(email, hash) {
+            const BE = NX.backend; if (!BE || !BE.on) return;
+            for (let i = 0; i < 8; i++) { await new Promise(r => setTimeout(r, 700)); if (await BE.login('customer', email, hash)) return; }
         }
         function regForm() {
             av.innerHTML = `<form novalidate><div class="row"><div class="field"><label for="g1">Vorname <span class="req">*</span></label><input id="g1" name="first" autocomplete="given-name"></div><div class="field"><label for="g2">Nachname <span class="req">*</span></label><input id="g2" name="last" autocomplete="family-name"></div></div><div class="field"><label for="g3">E-Mail-Adresse <span class="req">*</span></label><input id="g3" name="email" type="email" autocomplete="email"></div><div class="field"><label for="g4">Telefonnummer <span class="req">*</span></label><input id="g4" name="phone" type="tel" autocomplete="tel"></div><div class="field"><label for="g5">Passwort <span class="req">*</span></label><input id="g5" name="pw" type="password" autocomplete="new-password"></div><div class="field"><label for="g6">Passwort bestätigen <span class="req">*</span></label><input id="g6" name="pw2" type="password" autocomplete="new-password"></div><button class="btn" type="submit">Konto erstellen</button></form>`;
@@ -112,7 +117,8 @@
                     c = { id: NX.nextId('K', D.customers), first: x.first.trim(), last: x.last.trim(), email: x.email.trim(), phone: x.phone.trim(), street: '', no: '', zip: '', city: '', country: '', status: 'aktiv', role: 'Kunde', pwHash: h, created: NX.today(), resetPending: false };
                     D.customers.push(c);
                 }
-                NX.log('Kunde registriert (lokal): ' + c.id);
+                NX.log('Kunde registriert: ' + c.id);
+                await srvLogin(c.email, c.pwHash);
                 NX.sess.set('customer', c.id);
                 NX.toast('Konto erstellt.');
                 app();
@@ -201,7 +207,7 @@
             el.innerHTML = `<h1>Support & Wartung</h1><form class="card formcard nx-supportform" novalidate><div class="row"><div class="field"><label for="sa">Art</label><select id="sa" name="type"><option>Support</option><option>Wartung</option></select></div><div class="field"><label for="sp">Für welche Website / welches Projekt? <span class="req">*</span></label><select id="sp" name="project"><option value="">Bitte auswählen …</option>${myProj.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}<option value="__other">Andere Website / Allgemein</option></select></div></div><div class="field"><label for="sb">Betreff <span class="req">*</span></label><input id="sb" name="subject"></div><div class="field"><label for="sm">Nachricht <span class="req">*</span></label><textarea id="sm" name="message"></textarea></div><button class="btn" type="submit">Anfrage senden</button></form><h2 class="sub">Meine Support-Anfragen</h2>` + (l.length ? NX.table(['Datum', 'Art', 'Website / Projekt', 'Betreff', 'Status'], l.map(s => ({ id: s.id, cells: [NX.date(s.date), esc(s.type), esc(pname(s)), esc(s.subject), NX.badge(s.status)] }))) : '<div class="tw"><p class="empty">Noch keine Support-Anfragen.</p></div>');
             const f = NX.$('form', el);
             f.onsubmit = NX.guard(async (e) => { e.preventDefault(); if (!NX.check(f, { project: ['req'], subject: ['req'], message: ['req'] }))
-                return; const x = NX.fd(f); D.support.push({ project: x.project, id: NX.uid('S'), customerId: c.id, type: x.type, subject: x.subject.trim(), message: x.message.trim(), status: 'Offen', date: NX.today() }); NX.log('Support-Anfrage: ' + x.subject); NX.toast('Anfrage lokal gespeichert.'); draw(); });
+                return; const x = NX.fd(f); D.support.push({ project: x.project, id: NX.uid('S'), customerId: c.id, type: x.type, subject: x.subject.trim(), message: x.message.trim(), status: 'Offen', date: NX.today() }); NX.log('Support-Anfrage: ' + x.subject); NX.toast('Anfrage gespeichert.'); draw(); });
         };
         draw();
     }
@@ -211,7 +217,7 @@
         <form class="card formcard" id="profile-password" novalidate><h2>Passwort ändern</h2><p class="mut">Bestätige zuerst dein bisheriges Passwort und vergib anschließend ein neues Passwort mit mindestens 8 Zeichen.</p><div class="field"><label for="cp-current">Aktuelles Passwort</label><input id="cp-current" name="current" type="password" autocomplete="current-password"></div><div class="field"><label for="cp-new">Neues Passwort</label><input id="cp-new" name="newpw" type="password" autocomplete="new-password"></div><div class="field"><label for="cp-confirm">Neues Passwort wiederholen</label><input id="cp-confirm" name="confirm" type="password" autocomplete="new-password"></div><p class="err" id="pw-error" role="alert"></p><button class="btn" type="submit">Passwort speichern</button></form>
         <section class="card formcard" aria-labelledby="delete-account-title"><h2 id="delete-account-title">Konto löschen</h2><p class="mut">Du kannst die Löschung deines Kundenkontos beantragen. Nach der Bestätigung wird dein Konto deaktiviert und 30 Tage im Archiv aufbewahrt; erst danach wird es endgültig gelöscht. Innerhalb dieser Frist kannst du dein Konto nach der Anmeldung wiederherstellen. Bereits erstellte Angebote, Rechnungen und Geschäftsunterlagen bleiben davon unberührt.</p><button class="btn danger" id="delete-account" type="button">Kundenkonto löschen</button></section>`;
         const f = NX.$('#profile-data', el);
-        f.onsubmit = NX.guard(async (e) => { e.preventDefault(); if (!NX.check(f, { first: ['req'], last: ['req'], email: ['req', 'email'], phone: ['req', 'phone'] })) return; const x = NX.fd(f); if (NX.db.customers.some(u => u.id !== c.id && u.email.toLowerCase() === x.email.toLowerCase())) return setErr(f, 'email', 'Diese E-Mail-Adresse wird bereits verwendet.'); Object.keys(x).forEach(k => c[k] = x[k].trim()); NX.log('Profil aktualisiert: ' + c.id); NX.toast('Profil lokal gespeichert.'); });
+        f.onsubmit = NX.guard(async (e) => { e.preventDefault(); if (!NX.check(f, { first: ['req'], last: ['req'], email: ['req', 'email'], phone: ['req', 'phone'] })) return; const x = NX.fd(f); if (NX.db.customers.some(u => u.id !== c.id && u.email.toLowerCase() === x.email.toLowerCase())) return setErr(f, 'email', 'Diese E-Mail-Adresse wird bereits verwendet.'); Object.keys(x).forEach(k => c[k] = x[k].trim()); NX.log('Profil aktualisiert: ' + c.id); NX.toast('Profil gespeichert.'); });
         const pf = NX.$('#profile-password', el);
         pf.onsubmit = NX.guard(async e => { e.preventDefault(); const err = NX.$('#pw-error', pf); err.textContent = ''; if (!NX.check(pf, { current: ['req'], newpw: ['req', 'pw'], confirm: ['req'] })) return; const x = NX.fd(pf); if (await NX.hash(x.current) !== c.pwHash) { err.textContent = 'Das aktuelle Passwort ist nicht korrekt.'; return; } if (x.newpw !== x.confirm) { err.textContent = 'Die neuen Passwörter stimmen nicht überein.'; return; } if (x.current === x.newpw) { err.textContent = 'Bitte verwende ein anderes Passwort als bisher.'; return; } c.pwHash = await NX.hash(x.newpw); c.resetPending = false; NX.log('Kunde hat sein Passwort geändert: ' + c.id); pf.reset(); NX.toast('Dein Passwort wurde geändert.'); });
         NX.$('#delete-account', el).onclick = () => {
