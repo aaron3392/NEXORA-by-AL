@@ -92,7 +92,9 @@
     async function register() { try { if ('serviceWorker' in navigator && window.isSecureContext) reg = await navigator.serviceWorker.register('sw.js', { scope: './' }); } catch (e) { reg = null; } }
     if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.nxGo) { const h = String(e.data.nxGo).split('#')[1]; if (h) location.hash = h; } });
     document.addEventListener('nx:view', () => { mount(); if (!snap && NX.db) snap = take(NX.db); });
-    new MutationObserver(mount).observe(document.getElementById('hdr') || document.body, { childList: true });
+    let mq = 0; const later = () => { if (mq) return; mq = requestAnimationFrame(() => { mq = 0; mount(); }); };
+    new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true });
+    document.addEventListener('DOMContentLoaded', mount); window.addEventListener('load', mount); mount();
     if (wanted()) register();
     loop();
 })();

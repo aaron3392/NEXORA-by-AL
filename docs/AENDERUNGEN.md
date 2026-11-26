@@ -332,3 +332,8 @@
 ## Nachtrag 43 – Dokumente im Kundenportal je Projekt
 - Kundenportal → Projekte: jede Projektkarte zeigt „Dokumente“ (Kostenvoranschlag, Angebot, Rechnungen, Zahlungserinnerungen, Mahnungen) mit Status und „Ansehen“. Das Menü „Dokumente“ bleibt als Gesamtliste.
 - Server: Der Kunde erhält über die Schnittstelle nur noch versendete Angebote, nicht-Entwurf-Rechnungen und zugehörige Erinnerungen/Mahnungen – Entwürfe sind für Kunden nie abrufbar.
+
+## Nachtrag 44 – Admin-Header
+- Header: links nur das Logo, in der Mitte die Suche, rechts Live, Glocke und der Kreis mit den Initialen. „Abmelden“ steht jetzt im Profil-Fenster.
+- Fehlerbehebung: Nach hartem Neuladen fehlte teils die Live-Anzeige (Profil-Button saß in der Mitte); sie wird nun zuverlässig eingehängt.
+- Fehlerbehebung: Nach Verkleinern und Vergrößern des Fensters landete die Suche vor dem Logo; die Reihenfolge bleibt jetzt immer gleich.
