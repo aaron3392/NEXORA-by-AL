@@ -86,7 +86,7 @@
         const box = document.createElement('div'); box.className = 'nx-live-box';
         box.innerHTML = '<span class="nx-live" data-s="' + status + '" role="status" aria-label="Live-Abgleich"><i></i>Live</span><button type="button" class="nx-live-bell" aria-label="Benachrichtigungen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 20a2 2 0 0 0 3.4 0"/></svg></button>';
         const out = [...hdr.querySelectorAll('button')].find(x => /Abmelden/i.test(x.textContent)); const hb = hdr.querySelector('.hb');
-        if (out && out.parentNode) out.parentNode.insertBefore(box, out); else hb.appendChild(box);
+        const me = hdr.querySelector('#me'), ref = me || out; if (ref && ref.parentNode) ref.parentNode.insertBefore(box, ref); else hb.appendChild(box);
         box.querySelector('.nx-live-bell').onclick = toggle; bell(); setStatus(status);
     }
     async function register() { try { if ('serviceWorker' in navigator && window.isSecureContext) reg = await navigator.serviceWorker.register('sw.js', { scope: './' }); } catch (e) { reg = null; } }

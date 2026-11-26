@@ -88,7 +88,7 @@
                 return setErr(f, 'n2', 'Die Passwörter stimmen nicht überein.'); c.pwHash = await NX.hash(x.n1); c.resetPending = false; NX.log('Kunde setzt neues Passwort: ' + c.id); NX.sess.set('customer', c.id); m.close(); app(); });
         }
         function regForm() {
-            av.innerHTML = `<form novalidate><div class="row"><div class="field"><label for="g1">Vorname <span class="req">*</span></label><input id="g1" name="first" autocomplete="given-name"></div><div class="field"><label for="g2">Nachname <span class="req">*</span></label><input id="g2" name="last" autocomplete="family-name"></div></div><div class="field"><label for="g3">E-Mail-Adresse <span class="req">*</span></label><input id="g3" name="email" type="email" autocomplete="email"></div><div class="field"><label for="g4">Telefonnummer <span class="req">*</span></label><input id="g4" name="phone" type="tel" autocomplete="tel"></div><div class="field"><label for="g5">Passwort <span class="req">*</span></label><input id="g5" name="pw" type="password" autocomplete="new-password"></div><div class="field"><label for="g6">Passwort bestätigen <span class="req">*</span></label><input id="g6" name="pw2" type="password" autocomplete="new-password"></div><button class="btn" type="submit">Konto lokal erstellen</button></form>`;
+            av.innerHTML = `<form novalidate><div class="row"><div class="field"><label for="g1">Vorname <span class="req">*</span></label><input id="g1" name="first" autocomplete="given-name"></div><div class="field"><label for="g2">Nachname <span class="req">*</span></label><input id="g2" name="last" autocomplete="family-name"></div></div><div class="field"><label for="g3">E-Mail-Adresse <span class="req">*</span></label><input id="g3" name="email" type="email" autocomplete="email"></div><div class="field"><label for="g4">Telefonnummer <span class="req">*</span></label><input id="g4" name="phone" type="tel" autocomplete="tel"></div><div class="field"><label for="g5">Passwort <span class="req">*</span></label><input id="g5" name="pw" type="password" autocomplete="new-password"></div><div class="field"><label for="g6">Passwort bestätigen <span class="req">*</span></label><input id="g6" name="pw2" type="password" autocomplete="new-password"></div><button class="btn" type="submit">Konto erstellen</button></form>`;
             const f = NX.$('form', av);
             f.onsubmit = NX.guard(async (e) => {
                 e.preventDefault();
@@ -109,7 +109,7 @@
                     c.phone = x.phone.trim();
                 }
                 else {
-                    c = { id: NX.nextId('K', D.customers), first: x.first.trim(), last: x.last.trim(), email: x.email.trim(), phone: x.phone.trim(), street: '', no: '', zip: '', city: '', country: '', status: 'aktiv', pwHash: h, created: NX.today(), resetPending: false };
+                    c = { id: NX.nextId('K', D.customers), first: x.first.trim(), last: x.last.trim(), email: x.email.trim(), phone: x.phone.trim(), street: '', no: '', zip: '', city: '', country: '', status: 'aktiv', role: 'Kunde', pwHash: h, created: NX.today(), resetPending: false };
                     D.customers.push(c);
                 }
                 NX.log('Kunde registriert (lokal): ' + c.id);

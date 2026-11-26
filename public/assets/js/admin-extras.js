@@ -894,48 +894,33 @@
     });
   }
 
-  /* ---------- Nur mit Server: Dateien, Server-Sicherungen, Automatik ---------- */
+  /* ---------- Nur mit Server: Server-Sicherungen, Automatik ---------- */
   var beOn = function () { return NX.backend && NX.backend.on && NX.backend.role === 'admin'; };
   var rq = function (m, url, body, raw) { return fetch(url, { method: m, credentials: 'same-origin', headers: raw ? { 'Content-Type': 'application/octet-stream' } : { 'Content-Type': 'application/json' }, body: raw || (body ? JSON.stringify(body) : undefined) }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); }); };
   var fsize = function (n) { return n > 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; };
-  var ownerLabel = function (o) {
-    var m = String(o).match(/^(\w+):(.+)$/); if (!m) return o; var D = NX.db;
-    if (m[1] === 'customer') return 'Kunde: ' + NX.custName(m[2]);
-    if (m[1] === 'project') { var p = (D.projects || []).concat(D.projectArchive || []).find(function (x) { return x.id === m[2]; }); return 'Projekt: ' + (p ? p.name : m[2]); }
-    if (m[1] === 'invoice') { var i = (D.invoices || []).find(function (x) { return x.id === m[2]; }); return 'Rechnung: ' + (i ? (i.number || 'Entwurf') : m[2]); }
-    return m[1] + ': ' + m[2];
-  };
-  function filesView(c) {
-    if (c.querySelector('.nx-ax-files')) return;
-    var box = document.createElement('section'); box.className = 'card nx-ax-files'; c.appendChild(box);
-    if (!(beOn() || (NX.backend && NX.backend.on && NX.backend.role === 'employee'))) { box.innerHTML = '<p class="mut">Dateien werden auf dem Server gespeichert und sind nur mit Server-Betrieb verfügbar.</p>'; return; }
-    var D = NX.db, opts = function () {
-      var o = '<optgroup label="Kunde">' + (D.customers || []).map(function (u) { return '<option value="customer:' + esc(u.id) + '">' + esc(u.first + ' ' + u.last) + '</option>'; }).join('') + '</optgroup>';
-      o += '<optgroup label="Projekt">' + (D.projects || []).map(function (p) { return '<option value="project:' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('') + '</optgroup>';
-      o += '<optgroup label="Rechnung">' + (D.invoices || []).filter(function (i) { return !i.draft; }).map(function (i) { return '<option value="invoice:' + esc(i.id) + '">' + esc(i.number) + ' – ' + esc(NX.custName(i.customerId)) + '</option>'; }).join('') + '</optgroup>';
-      return o;
-    };
-    box.innerHTML = '<h3>Datei hochladen</h3><form novalidate class="nx-ax-fform"><div class="field"><label for="nxfo">Zuordnung</label><select id="nxfo" name="o">' + opts() + '</select></div><div class="field"><label for="nxff">Dateien (je höchstens 10 MB: PDF, Bilder, Office, ZIP, TXT, CSV)</label><input id="nxff" name="f" type="file" multiple></div><p class="err" role="alert"></p><button class="btn" type="submit">Hochladen</button></form><h3>Alle Dateien</h3><div class="field"><label for="nxfq">Suchen</label><input id="nxfq" type="search" placeholder="Name oder Zuordnung" autocomplete="off"></div><div class="tw"><table><thead><tr><th scope="col">Datei</th><th scope="col">Zuordnung</th><th scope="col">Größe</th><th scope="col">Hochgeladen</th><th scope="col"></th></tr></thead><tbody></tbody></table></div><p class="mut nx-ax-fnone" hidden>Noch keine Dateien.</p>';
-    var tb = box.querySelector('tbody'), none = box.querySelector('.nx-ax-fnone'), q = box.querySelector('#nxfq'), err = box.querySelector('.err'), all = [];
+  /* Dateien direkt an Anfrage bzw. Projekt (kein eigener Menüpunkt): NX.attachments(host, { owner, also, title, note }) */
+  NX.attachments = function (host, o) {
+    var BE = NX.backend; if (!BE || !BE.on || (BE.role !== 'admin' && BE.role !== 'employee')) return;
+    var box = document.createElement('section'); box.className = 'nx-ax-files'; host.appendChild(box);
+    var owners = [o.owner].concat(o.also || []);
+    box.innerHTML = '<h3>' + esc(o.title || 'Dateien') + '</h3>' + (o.note ? '<p class="mut">' + esc(o.note) + '</p>' : '') + '<ul class="nx-att-list" aria-live="polite"></ul><p class="err" role="alert"></p>' +
+      '<div class="acts"><label class="btn ghost sm nx-att-add">+ Datei hinzufügen<input type="file" multiple hidden></label><small class="mut">je höchstens 10 MB: PDF, Bilder, Office, ZIP, TXT, CSV</small></div>';
+    var ul = box.querySelector('ul'), err = box.querySelector('.err'), inp = box.querySelector('input'), all = [];
     function draw() {
-      var t = q.value.trim().toLowerCase(), f = all.filter(function (x) { return !t || (x.name + ' ' + ownerLabel(x.owner)).toLowerCase().indexOf(t) > -1; });
-      tb.innerHTML = f.map(function (x) { return '<tr><td>' + esc(x.name) + '</td><td>' + esc(ownerLabel(x.owner)) + '</td><td>' + fsize(x.size) + '</td><td>' + esc(NX.date(String(x.created_at).slice(0, 10))) + '</td><td class="nx-ax-fact"><a class="btn ghost sm" href="/api/files/' + esc(x.id) + '">Herunterladen</a> <button type="button" class="btn ghost sm" data-fdel="' + esc(x.id) + '">Löschen</button></td></tr>'; }).join('');
-      none.hidden = !!all.length; box.querySelector('.tw').hidden = !all.length;
+      ul.innerHTML = all.length ? all.map(function (x) { return '<li><span>' + esc(x.name) + ' <small class="mut">' + fsize(x.size) + ' · ' + esc(NX.date(String(x.created_at).slice(0, 10))) + (x.owner !== o.owner ? ' · aus der Anfrage' : '') + '</small></span><span class="nx-att-act"><a class="btn ghost sm" href="/api/files/' + esc(x.id) + '">Herunterladen</a> <button type="button" class="btn ghost sm" data-fdel="' + esc(x.id) + '">Löschen</button></span></li>'; }).join('') : '<li class="mut">Noch keine Dateien.</li>';
     }
-    function load() { rq('GET', '/api/files').then(function (r) { all = r.ok ? r.j.files : []; draw(); }); }
-    load(); q.addEventListener('input', draw);
+    function load() { rq('GET', '/api/files').then(function (r) { all = r.ok ? r.j.files.filter(function (x) { return owners.indexOf(x.owner) > -1; }) : []; draw(); }); }
+    load();
     box.addEventListener('click', function (e) { var b = e.target.closest('[data-fdel]'); if (!b) return; NX.confirm('Datei endgültig löschen?', 'Löschen').then(function (y) { if (!y) return; rq('DELETE', '/api/files/' + b.dataset.fdel).then(function (r) { NX.toast(r.ok ? 'Datei gelöscht.' : 'Nicht möglich.'); load(); }); }); });
-    var f = box.querySelector('form');
-    f.onsubmit = function (e) {
-      e.preventDefault(); var files = Array.prototype.slice.call(f.f.files || []); err.textContent = '';
-      if (!files.length) { err.textContent = 'Bitte mindestens eine Datei wählen.'; return; }
-      var big = files.filter(function (x) { return x.size > 10 * 1048576; }); if (big.length) { err.textContent = '„' + big[0].name + '“ ist größer als 10 MB.'; return; }
-      var o = f.o.value, n = 0, bad = '';
-      files.reduce(function (p, file) { return p.then(function () { return file.arrayBuffer().then(function (buf) { return rq('POST', '/api/files?owner=' + encodeURIComponent(o) + '&name=' + encodeURIComponent(file.name), null, buf); }).then(function (r) { if (r.ok) n++; else bad = r.j.error || 'Fehler'; }); }); }, Promise.resolve()).then(function () {
-        f.reset(); err.textContent = bad ? bad : ''; NX.toast(n + (n === 1 ? ' Datei hochgeladen.' : ' Dateien hochgeladen.')); load();
+    inp.onchange = function () {
+      var files = Array.prototype.slice.call(inp.files || []); err.textContent = ''; if (!files.length) return;
+      var big = files.filter(function (x) { return x.size > 10 * 1048576; }); if (big.length) { err.textContent = '„' + big[0].name + '“ ist größer als 10 MB.'; inp.value = ''; return; }
+      var n = 0, bad = '';
+      files.reduce(function (p, file) { return p.then(function () { return file.arrayBuffer().then(function (buf) { return rq('POST', '/api/files?owner=' + encodeURIComponent(o.owner) + '&name=' + encodeURIComponent(file.name), null, buf); }).then(function (r) { if (r.ok) n++; else bad = r.j.error || 'Fehler'; }); }); }, Promise.resolve()).then(function () {
+        inp.value = ''; err.textContent = bad; if (n) NX.toast(n + (n === 1 ? ' Datei hinzugefügt.' : ' Dateien hinzugefügt.')); load();
       });
     };
-  }
+  };
   function serverBackups(c) {
     if (!beOn() || c.querySelector('.nx-ax-sbk')) return;
     var sec = document.createElement('section'); sec.className = 'card nx-ax-sbk'; c.appendChild(sec);
@@ -974,7 +959,6 @@
     if (id === 'user') { archivePanel(c); var tb = c.querySelector('#tb'); if (tb) new MutationObserver(function () { archivePanel(c); }).observe(tb, { childList: true }); }
     if (id === 'projekte') orderArchivePanel(c);
     if (id === 'backup') { backupPanel(c); serverBackups(c); }
-    if (id === 'dateien') filesView(c);
     if (id === 'einstellungen') automationCard(c);
     if (id === 'kalender') calendarView(c);
     chips(c);
