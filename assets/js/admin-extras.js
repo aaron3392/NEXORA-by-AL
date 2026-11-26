@@ -20,6 +20,16 @@
     var D = NX.db, items = [], today = NX.today();
     var n = (D.inquiries || []).filter(function (i) { return i.status === 'Neu'; }).length;
     if (n) items.push({ k: 'info', t: n + (n === 1 ? ' neue Anfrage' : ' neue Anfragen'), v: 'anfragen' });
+    (D.offers || []).forEach(function (o) {
+      if (!o.decision) return; var who = NX.custName ? NX.custName(o.customerId) : '';
+      if (o.decision.st === 'Angenommen' && !o.started) items.push({ k: 'ok', t: (o.type || 'Angebot') + ' ' + o.number + ' angenommen (' + who + ') – Entwicklung starten', v: 'verrechnung-angebote', sel: 'button[data-act="edit"][data-id="' + o.id + '"]' });
+      if (o.decision.st === 'Abgelehnt' && !o.decisionSeen) items.push({ k: 'warn', t: (o.type || 'Angebot') + ' ' + o.number + ' abgelehnt (' + who + '): ' + o.decision.reason, v: 'verrechnung-angebote', sel: 'button[data-act="edit"][data-id="' + o.id + '"]' });
+    });
+    (D.invoices || []).forEach(function (i) {
+      if (i.draft || NX.open(i) <= 0) return; var who = NX.custName ? NX.custName(i.customerId) : '';
+      if (i.claim && i.claim.at !== i.claimDone) items.push({ k: 'warn', t: 'Zahlung gemeldet: Rechnung ' + i.number + ' (' + who + ') – bitte prüfen und bestätigen', v: 'verrechnung-rechnungen', sel: 'button[data-act="edit"][data-id="' + i.id + '"]' });
+      else if ((i.bankHints || []).length) items.push({ k: 'info', t: 'Zahlung im Kontoauszug erkannt: Rechnung ' + i.number + ' – bitte bestätigen', v: 'verrechnung-rechnungen', sel: 'button[data-act="edit"][data-id="' + i.id + '"]' });
+    });
     var over = (D.invoices || []).filter(function (i) { return NX.invStatus(i) === 'Überfällig'; });
     if (over.length) items.push({ k: 'warn', t: over.length + (over.length === 1 ? ' überfällige Rechnung' : ' überfällige Rechnungen') + ' (' + NX.eur(over.reduce(function (s, i) { return s + NX.open(i); }, 0)) + ' offen)', v: 'verrechnung-rechnungen' });
     var drafts = (D.invoices || []).filter(function (i) { return i.draft; }).length;
@@ -38,7 +48,7 @@
     var list = todo();
     var html = '<div class="nx-ax">' +
       '<div class="nx-ax-row"><section class="card nx-ax-todo"><h3>Handlungsbedarf</h3>' +
-      (list.length ? '<ul>' + list.map(function (i) { return '<li class="' + i.k + '"><button type="button" data-ax-go="' + i.v + '"><i aria-hidden="true"></i><span>' + esc(i.t) + '</span><b aria-hidden="true">›</b></button></li>'; }).join('') + '</ul>' : '<p class="nx-ax-ok">Alles erledigt – aktuell gibt es nichts, das Ihre Aufmerksamkeit braucht.</p>') +
+      (list.length ? '<ul>' + list.map(function (i) { return '<li class="' + i.k + '"><button type="button" data-ax-go="' + i.v + '"' + (i.sel ? ' data-ax-sel="' + esc(i.sel) + '"' : '') + '><i aria-hidden="true"></i><span>' + esc(i.t) + '</span><b aria-hidden="true">›</b></button></li>'; }).join('') + '</ul>' : '<p class="nx-ax-ok">Alles erledigt – aktuell gibt es nichts, das Ihre Aufmerksamkeit braucht.</p>') +
       '</section><section class="card nx-ax-quick"><h3>Schnellaktionen</h3><div>' +
       '<button type="button" class="btn" data-ax-go="verrechnung-rechnungen" data-ax-add>+ Neue Rechnung</button>' +
       '<button type="button" class="btn ghost" data-ax-go="verrechnung-angebote" data-ax-add>+ Neues Angebot</button>' +
@@ -49,7 +59,7 @@
     anchor.insertAdjacentHTML('afterend', html);
     c.querySelector('.nx-ax').addEventListener('click', function (e) {
       var b = e.target.closest('[data-ax-go]');
-      if (b) { go(b.dataset.axGo, b.hasAttribute('data-ax-add') ? '#add' : null); return; }
+      if (b) { go(b.dataset.axGo, b.hasAttribute('data-ax-add') ? '#add' : (b.dataset.axSel || null)); return; }
     });
   }
 

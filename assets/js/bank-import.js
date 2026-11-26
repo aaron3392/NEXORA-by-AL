@@ -141,7 +141,7 @@
             go.onclick = () => {
                 const sel = rows.map((r, i) => ({ r, i })).filter(x => out.querySelector(`[data-i="${x.i}"]`).checked).map(x => { const out2 = out.querySelector(`[data-d="${x.i}"]`).value === 'out' ? -Math.abs(x.r.amount) : Math.abs(x.r.amount); return { date: x.r.date, description: x.r.description, amount: out2 }; });
                 if (!sel.length) return NX.toast('Nichts ausgewählt.');
-                const res = bk.addBank(sel); m.close(); NX.toast(res.added + ' Buchungen importiert' + (res.matched ? ', ' + res.matched + ' automatisch einer Rechnung zugeordnet' : '') + '.'); done && done();
+                const res = bk.addBank(sel); m.close(); NX.toast(res.added + ' Buchungen importiert' + (res.matched ? ', ' + res.matched + ' als Zahlung erkannt (bitte in der Rechnung bestätigen)' : '') + '.'); done && done();
             };
         }
         function mapping(grid) {

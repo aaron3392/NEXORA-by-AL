@@ -104,7 +104,7 @@ function customerView(db, id) {
   v.customers = (db.customers || []).filter(c => c.id === id);
   ['projects', 'projectArchive', 'offers', 'invoices', 'reminders', 'time', 'support', 'subscriptions'].forEach(k => { if (isArr(db[k])) v[k] = db[k].filter(mine); });
   v.offers = (v.offers || []).filter(o => o.status !== 'Entwurf');   /* Entwürfe sieht der Kunde nie (auch nicht über die Schnittstelle) */
-  v.invoices = (v.invoices || []).filter(i => !i.draft);
+  v.invoices = (v.invoices || []).filter(i => !i.draft).map(i => { const o = Object.assign({}, i); delete o.bankHints; return o; });
   const vis = new Set(v.invoices.map(i => i.id)); v.reminders = (v.reminders || []).filter(r => vis.has(r.invoiceId));
   v.inquiries = (db.inquiries || []).filter(i => mine(i) || (v.customers[0] && String(i.email || '').toLowerCase() === String(v.customers[0].email || '').toLowerCase()));
   if (isObj(db.chat)) v.chat = db.chat[id] ? { [id]: db.chat[id] } : {};
@@ -140,6 +140,18 @@ function mergeCustomer(S, C, uid, ph) {
   const mine = x => x && x.customerId === uid;
   ['support'].forEach(k => { if (isArr(C[k])) { const others = (out[k] || []).filter(x => !mine(x)); out[k] = others.concat(C[k].filter(mine).map(x => Object.assign({}, x, { customerId: uid }))); } });
   if (isArr(C.inquiries)) { const others = (out.inquiries || []).filter(x => !mine(x)); const own = C.inquiries.filter(mine); const add = []; own.forEach(i => { const all = others.concat(add); add.push(Object.assign({}, i, { id: all.some(x => x.id === i.id && !(S.inquiries || []).some(y => y.id === i.id && mine(y))) ? nextFreeId(all, '', 'A') : i.id, customerId: uid })); }); out.inquiries = others.concat(add); }
+  /* Entscheidung des Kunden zu Angeboten/Kostenvoranschlägen (annehmen oder mit Begründung ablehnen) und Zahlungsmeldung zu Rechnungen */
+  if (isArr(C.offers)) C.offers.filter(mine).forEach(co => {
+    const so = (out.offers || []).find(x => x.id === co.id && mine(x)); if (!so || so.status !== 'Versendet' || !isObj(co.decision)) return;
+    const st = co.decision.st === 'Angenommen' || co.decision.st === 'Abgelehnt' ? co.decision.st : null; if (!st) return;
+    const reason = String(co.decision.reason || '').trim().slice(0, 1000); if (st === 'Abgelehnt' && reason.length < 3) return;
+    so.status = st; so.decision = { st, at: Date.now(), reason: st === 'Abgelehnt' ? reason : '' }; delete so.decisionSeen; delete so.started;
+  });
+  if (isArr(C.invoices)) C.invoices.filter(mine).forEach(ci => {
+    const si = (out.invoices || []).find(x => x.id === ci.id && mine(x)); if (!si || si.draft || !isObj(ci.claim)) return;
+    if (si.claim && si.claim.at && si.claim.at !== si.claimDone) return;
+    si.claim = { at: Date.now() }; delete si.claimResult;
+  });
   const myProjects = new Set((out.projects || []).concat(out.projectArchive || []).filter(mine).map(p => p.id));
   if (isArr(C.reviews)) { const others = (out.reviews || []).filter(r => !myProjects.has(r.projectId)); out.reviews = others.concat(C.reviews.filter(r => myProjects.has(r.projectId))); }
   if (isObj(C.chat) && isArr(C.chat[uid])) { out.chat = out.chat || {}; out.chat[uid] = C.chat[uid].slice(-500); }
@@ -166,6 +178,9 @@ function mergeAdmin(S, C, base) {
   const out = clone(C);
   /* Datensätze, die nach dem Laden dieses Admin-Stands entstanden sind (Registrierungen, Anfragen, Automatik …), bleiben erhalten */
   STAMPED.forEach(k => { const have = new Set((out[k] || []).map(x => x.id)); (S[k] || []).filter(x => Number(x._r) > Number(base) && !have.has(x.id)).forEach(x => { (out[k] = out[k] || []).push(x); }); });
+  /* Entscheidungen und Zahlungsmeldungen der Kunden gehen nicht durch einen älteren Admin-Stand verloren */
+  (S.offers || []).forEach(so => { if (!so.decision) return; const co = (out.offers || []).find(x => x.id === so.id); if (co && (!co.decision || Number(co.decision.at) < Number(so.decision.at))) { co.decision = so.decision; co.status = so.decision.st; delete co.decisionSeen; delete co.started; } });
+  (S.invoices || []).forEach(si => { if (!si.claim) return; const ci = (out.invoices || []).find(x => x.id === si.id); if (ci && si.claim.at !== ci.claimDone && (!ci.claim || Number(ci.claim.at) < Number(si.claim.at))) { ci.claim = si.claim; delete ci.claimResult; } });
   /* Kundenpasswörter und letzte Aktivität stammen vom Server */
   (out.customers || []).forEach(c => { const sc = (S.customers || []).find(x => x.id === c.id); if (sc) { if (sc.pwHash && isSecured(c.pwHash || sc.pwHash)) c.pwHash = sc.pwHash; if ((sc.lastActivity || 0) > (c.lastActivity || 0)) c.lastActivity = sc.lastActivity; } });
   (S.subscriptions || []).forEach(ss => { const cs = (out.subscriptions || []).find(x => x.id === ss.id); if (cs && (ss.generatedPeriods || []).length > (cs.generatedPeriods || []).length) Object.assign(cs, { nextDate: ss.nextDate, generatedPeriods: ss.generatedPeriods, lastInvoiceId: ss.lastInvoiceId }); });

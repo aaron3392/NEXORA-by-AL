@@ -345,3 +345,10 @@
 
 ## Nachtrag 46 – Eine E-Mail für alles
 - Einstellungen: der Punkt „E-Mail (FormSubmit)“ entfällt. Anfragen, Kontaktnachrichten, Termin-Erinnerungen und Kunden-Mails nutzen die E-Mail-Adresse aus den Unternehmensdaten (eine früher hinterlegte FormSubmit-Adresse gilt nur als Ersatz, solange dort nichts steht).
+
+## Nachtrag 47 – Annehmen/Ablehnen und Zahlungsmeldung
+- Kundenportal (Dokumente und Projekte): Bei versendeten Angeboten und Kostenvoranschlägen gibt es **Annehmen** und **Ablehnen** (Ablehnen nur mit Begründung). Die Entscheidung bleibt sichtbar.
+- Bei Rechnungen, Zahlungserinnerungen und Mahnungen gibt es **Ich habe bezahlt**. Danach steht dort „Zahlung gemeldet – wird von uns geprüft“.
+- Admin: Dashboard-Handlungsbedarf und Hinweise (Glocke) für angenommen/abgelehnt (mit Grund) und gemeldete Zahlungen. Im Angebot **Entwicklung starten** (Projekt wird „Laufend“). In der Rechnung **Zahlung bestätigen** (bucht die Zahlung) oder **Nicht eingegangen**. Eine Rechnung gilt erst nach deiner Bestätigung als bezahlt.
+- Kontoauszug-Import: erkannte Zahlungen werden nur noch **vorgeschlagen** (Hinweis an der Rechnung) und erst nach deiner Bestätigung gebucht.
+- Server: Kunden dürfen nur Annehmen/Ablehnen (mit Grund) eigener versendeter Angebote und eine Zahlungsmeldung zu eigenen Rechnungen setzen; ein älterer Admin-Stand überschreibt solche Meldungen nicht.
