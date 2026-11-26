@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c26bff"/><stop offset=".5" stop-color="#8a22ff"/><stop offset="1" stop-color="#6a12f0"/></linearGradient>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#241040"/><stop offset="1" stop-color="#0a0612"/></linearGradient>
+<linearGradient id="sh" x1="0" y1="0" x2="1" y2="1"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#e8c8ff" stop-opacity=".55"/><stop offset=".65" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+<rect width="512" height="512" fill="url(#bg)"/>
+<g fill="url(#g)" stroke="url(#g)" stroke-width="14" stroke-linejoin="round">
+<!-- A -->
+<path d="M52 372 L52 372 L104 372 L172 208 L172 148 Z"/>
+<path d="M196 148 L196 148 L262 372 L212 372 L184 250 Z" transform="translate(-8 0)"/>
+<path d="M122 322 L196 322 L196 346 L116 346 Z"/>
+<!-- D -->
+<path d="M290 148 L338 148 L338 372 L290 372 Z"/>
+<path d="M366 148 L394 148 Q462 148 462 260 Q462 372 394 372 L366 372 L366 330 L390 330 Q418 330 418 260 Q418 190 390 190 L366 190 Z"/>
+</g>
+</svg>
